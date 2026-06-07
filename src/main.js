@@ -152,8 +152,8 @@ async function refreshPoints() {
 
   renderSidebar(points, {
     onEdit:      openPointModal,
-    onMoveUp:    async (id) => { await movePointUp(Number(id));   refreshPoints() },
-    onMoveDown:  async (id) => { await movePointDown(Number(id)); refreshPoints() },
+    onMoveUp:    async (id) => { await movePointUp(Number(id));   await recalcTimesAfter(getActiveTripId()); refreshPoints() },
+    onMoveDown:  async (id) => { await movePointDown(Number(id)); await recalcTimesAfter(getActiveTripId()); refreshPoints() },
     onCopy: async (id) => {
       const tripId = getActiveTripId()
       const points = await loadPoints(tripId)
@@ -479,6 +479,48 @@ function updateDepartPreview() {
   }
 }
 
+// ── 시간 연쇄 재계산 ─────────────────────────────────
+async function recalcTimesAfter(tripId) {
+  const points = await loadPoints(tripId)
+  if (!points.length) return
+
+  // 일차별로 분리해서 각각 계산
+  const grouped = {}
+  points.forEach(p => grouped[p.day || 1] = (grouped[p.day || 1] || []).concat(p))
+
+  for (const dayPts of Object.values(grouped)) {
+    dayPts.sort((a, b) => a.order - b.order)
+    for (let i = 0; i < dayPts.length; i++) {
+      const pt = dayPts[i]
+      // 첫 포인트는 arrive_time 그대로 유지
+      // depart_time = arrive_time + stay_minutes
+      let arrive = pt.arrive_time || ''
+      let depart = ''
+      if (arrive && pt.stay_minutes) {
+        const [h, m] = arrive.split(':').map(Number)
+        const total  = h * 60 + m + (pt.stay_minutes || 0)
+        depart = `${String(Math.floor(total / 60) % 24).padStart(2,'0')}:${String(total % 60).padStart(2,'0')}`
+      }
+      // 다음 포인트 arrive = 현재 depart + duration_minutes
+      if (i < dayPts.length - 1 && depart && pt.duration_minutes) {
+        const [h, m] = depart.split(':').map(Number)
+        const total  = h * 60 + m + (pt.duration_minutes || 0)
+        const nextArrive = `${String(Math.floor(total / 60) % 24).padStart(2,'0')}:${String(total % 60).padStart(2,'0')}`
+        const next = dayPts[i + 1]
+        // 다음 포인트 arrive_time 업데이트
+        if (next.arrive_time !== nextArrive) {
+          await updatePoint(next.id, { arrive_time: nextArrive })
+          dayPts[i + 1] = { ...next, arrive_time: nextArrive }
+        }
+      }
+      // 현재 포인트 depart_time 업데이트
+      if (pt.depart_time !== depart) {
+        await updatePoint(pt.id, { depart_time: depart })
+      }
+    }
+  }
+}
+
 // ── 장소 모달 ────────────────────────────────────────
 async function openPointModal(id) {
   editingId    = id
@@ -556,6 +598,8 @@ window.savePoint = async () => {
 
   if (editingId) await updatePoint(Number(editingId), data)
   else           await addPoint(getActiveTripId(), data)
+
+  await recalcTimesAfter(getActiveTripId())
 
   clearPreviewMarker()
   closeModal()
