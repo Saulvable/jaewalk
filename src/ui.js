@@ -53,11 +53,11 @@ export function renderSidebar(points, callbacks) {
   const list = document.getElementById('point-list')
   list.innerHTML = ''
 
-  // 일차 필터 버튼 바
+  // 일차 필터 버튼 바 — sticky (인라인 스타일 없이 CSS 클래스만 사용)
   const days = [...new Set(points.map(p => p.day || 1))].sort((a, b) => a - b)
   if (days.length > 1) {
     const bar = document.createElement('div')
-    bar.style.cssText = 'display:flex;gap:6px;padding:8px 4px 10px;flex-wrap:wrap;'
+    bar.className = 'day-filter-bar'
     const allBtn = document.createElement('button')
     allBtn.className = 'day-filter-btn active'
     allBtn.textContent = '전체'
@@ -117,6 +117,7 @@ export function renderSidebar(points, callbacks) {
           <div class="point-order-btns">
             <button class="order-btn" data-action="up"   data-id="${point.id}" ${isFirst ? 'disabled style="opacity:0.2"' : ''}>▲</button>
             <button class="order-btn" data-action="down" data-id="${point.id}" ${isLast  ? 'disabled style="opacity:0.2"' : ''}>▼</button>
+            <button class="order-btn" data-action="copy" data-id="${point.id}" title="복사" style="margin-top:2px;font-size:11px;color:#3ecfb2">⧉</button>
           </div>
         </div>
         <div class="point-meta">
@@ -132,9 +133,9 @@ export function renderSidebar(points, callbacks) {
       item.querySelectorAll('.order-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
           e.stopPropagation()
-          btn.dataset.action === 'up'
-            ? callbacks.onMoveUp?.(btn.dataset.id)
-            : callbacks.onMoveDown?.(btn.dataset.id)
+          if      (btn.dataset.action === 'up')   callbacks.onMoveUp?.(btn.dataset.id)
+          else if (btn.dataset.action === 'down') callbacks.onMoveDown?.(btn.dataset.id)
+          else if (btn.dataset.action === 'copy') callbacks.onCopy?.(btn.dataset.id)
         })
       })
       list.appendChild(item)
@@ -168,28 +169,17 @@ export function renderSidebar(points, callbacks) {
   })
 }
 
-// ── 요약 패널 ──────────────────────────────────────
+// ── 요약 패널 — 한줄 ───────────────────────────────
 export function renderSummary(tripName, points) {
   const totalCost = points.reduce((s, p) => s + (p.cost || 0), 0)
   const days      = [...new Set(points.map(p => p.day || 1))].length
-
-  const panel = document.getElementById('summary-panel')
+  const panel     = document.getElementById('summary-panel')
   if (!panel) return
-
   panel.innerHTML = `
-    <div style="font-size:13px;font-weight:700;color:#FF3D5A;margin-bottom:10px">${tripName}</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">
-      <div class="summary-card">
-        <div style="font-size:20px;font-weight:700;color:white">${days}</div>
-        <div style="color:#555;margin-top:2px">일차</div>
-      </div>
-      <div class="summary-card">
-        <div style="font-size:20px;font-weight:700;color:white">${points.length}</div>
-        <div style="color:#555;margin-top:2px">장소</div>
-      </div>
-      <div class="summary-card" style="grid-column:span 2">
-        <div style="font-size:18px;font-weight:700;color:#F39C12">$${totalCost.toFixed(0)}</div>
-        <div style="color:#555;margin-top:2px">총 이동 비용</div>
-      </div>
+    <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:#777;white-space:nowrap;overflow:hidden;">
+      <span style="font-weight:700;color:#FF3D5A;font-size:12px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;max-width:100px">${tripName}</span>
+      <span style="flex-shrink:0">${days}일</span>
+      <span style="flex-shrink:0">${points.length}곳</span>
+      <span style="color:#F39C12;flex-shrink:0">$${totalCost.toFixed(0)}</span>
     </div>`
 }

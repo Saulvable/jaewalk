@@ -107,6 +107,7 @@ export async function addPoint(tripId, data) {
     lat:               data.lat,
     lng:               data.lng,
     arrive_time:       data.arrive_time       || '',
+    stay_minutes:      data.stay_minutes      || 0,
     depart_time:       data.depart_time       || '',
     tag:               data.tag               || '',
     note:              data.note              || '',

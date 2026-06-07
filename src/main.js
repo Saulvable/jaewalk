@@ -44,6 +44,7 @@ async function init() {
 
   // 내보내기/가져오기
   document.getElementById('export-btn').addEventListener('click', handleExport)
+  document.getElementById('pdf-btn').addEventListener('click', handlePdfDownload)
   document.getElementById('import-file').addEventListener('change', handleImport)
 
   // 검색
@@ -61,6 +62,10 @@ async function init() {
 
   // 파일 업로드
   document.getElementById('f-files').addEventListener('change', handleFileUpload)
+
+  // 시간 드롭다운 미리보기
+  document.getElementById('f-arrive').addEventListener('change', updateDepartPreview)
+  document.getElementById('f-stay').addEventListener('change', updateDepartPreview)
 
   // 전역 핸들러
   window.__editPoint  = (id) => openPointModal(id)
@@ -101,6 +106,7 @@ async function showTripList() {
   document.getElementById('add-btn').textContent = '+ 여행 추가'
   document.getElementById('map-hint').textContent = '여행을 선택하거나 새로 만드세요'
   document.getElementById('export-btn').style.display = 'none'
+  document.getElementById('pdf-btn').style.display = 'none'
   document.getElementById('summary-panel').style.display = 'none'
 
   clearMap()
@@ -131,6 +137,7 @@ async function showPointList(tripId) {
   document.getElementById('add-btn').textContent = '+ 장소 추가'
   document.getElementById('map-hint').textContent = '지도를 클릭해서 장소를 추가하세요'
   document.getElementById('export-btn').style.display = 'block'
+  document.getElementById('pdf-btn').style.display = 'block'
   document.getElementById('summary-panel').style.display = 'block'
 
   await refreshPoints()
@@ -147,6 +154,15 @@ async function refreshPoints() {
     onEdit:      openPointModal,
     onMoveUp:    async (id) => { await movePointUp(Number(id));   refreshPoints() },
     onMoveDown:  async (id) => { await movePointDown(Number(id)); refreshPoints() },
+    onCopy: async (id) => {
+      const tripId = getActiveTripId()
+      const points = await loadPoints(tripId)
+      const point  = points.find(p => p.id === Number(id))
+      if (!point) return
+      const copy = { ...point, id: undefined, name: point.name + ' (복사)', arrive_time: '', depart_time: '', stay_minutes: 0 }
+      await addPoint(tripId, copy)
+      refreshPoints()
+    },
     onDayFilter: (day) => {
       currentDayFilter = day
       renderPoints(points, highlightSidebarItem, day)
@@ -174,6 +190,38 @@ async function handleExport() {
     download: `jaewalk_${tripId}_${new Date().toISOString().slice(0,10)}.json`
   })
   a.click()
+}
+
+async function handlePdfDownload() {
+  const tripId = getActiveTripId()
+  if (!tripId) return
+  const btn = document.getElementById('pdf-btn')
+  btn.textContent = '⏳ 생성 중...'
+  btn.classList.add('loading')
+  btn.disabled = true
+  try {
+    const json = await exportTripJson(tripId)
+    const data = JSON.parse(json)
+    const res  = await fetch('http://localhost:5174/pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trip: data.trip, points: data.points })
+    })
+    if (!res.ok) throw new Error('PDF 서버 오류')
+    const blob = await res.blob()
+    const name = (data.trip?.name || 'trip').replace(/\s+/g,'_')
+    const a = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(blob),
+      download: `${name}_${new Date().toISOString().slice(0,10)}.pdf`
+    })
+    a.click()
+  } catch(e) {
+    alert('PDF 서버에 연결할 수 없어요.\nstart.bat을 다시 실행해보세요.\n\n' + e.message)
+  } finally {
+    btn.textContent = '📄 PDF 다운로드'
+    btn.classList.remove('loading')
+    btn.disabled = false
+  }
 }
 
 async function handleImport(e) {
@@ -382,10 +430,60 @@ async function loadR2Files() {
   } catch { /* R2 연결 안 되면 조용히 스킵 */ }
 }
 
+// ── 시간 드롭다운 채우기 ─────────────────────────────
+function populateTimeDropdowns() {
+  const arriveEl = document.getElementById('f-arrive')
+  const stayEl   = document.getElementById('f-stay')
+  if (!arriveEl || !stayEl) return
+
+  // 도착 시간: 5분 간격 전체 하루 + 빈 옵션
+  if (arriveEl.options.length <= 1) {
+    arriveEl.innerHTML = '<option value="">-</option>'
+    for (let h = 0; h < 24; h++) {
+      for (let m = 0; m < 60; m += 5) {
+        const hh = String(h).padStart(2, '0')
+        const mm = String(m).padStart(2, '0')
+        const val = `${hh}:${mm}`
+        arriveEl.appendChild(new Option(val, val))
+      }
+    }
+  }
+
+  // 체류 시간: 10분 단위 최대 5시간
+  if (stayEl.options.length <= 1) {
+    stayEl.innerHTML = '<option value="">-</option>'
+    const steps = [10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200,210,220,230,240,250,260,270,280,290,300]
+    steps.forEach(m => {
+      const h = Math.floor(m / 60), r = m % 60
+      const label = h && r ? `${h}시간 ${r}분` : h ? `${h}시간` : `${r}분`
+      stayEl.appendChild(new Option(label, m))
+    })
+  }
+}
+
+// 체류시간 변경 시 출발 미리보기 업데이트
+function updateDepartPreview() {
+  const arrive = document.getElementById('f-arrive').value
+  const stay   = parseInt(document.getElementById('f-stay').value) || 0
+  const preview = document.getElementById('depart-preview')
+  if (!preview) return
+  if (arrive && stay) {
+    const [h, m] = arrive.split(':').map(Number)
+    const total  = h * 60 + m + stay
+    const dh = String(Math.floor(total / 60) % 24).padStart(2, '0')
+    const dm = String(total % 60).padStart(2, '0')
+    preview.textContent = `출발 ${dh}:${dm}`
+    preview.style.display = 'block'
+  } else {
+    preview.style.display = 'none'
+  }
+}
+
 // ── 장소 모달 ────────────────────────────────────────
 async function openPointModal(id) {
   editingId    = id
   pendingLinks = []
+  populateTimeDropdowns()
   clearForm()
   document.getElementById('location-confirm').style.display = 'none'
 
@@ -430,12 +528,22 @@ window.savePoint = async () => {
   if (!name)         { alert('장소명을 입력해주세요.'); return }
   if (!pendingLatLng){ alert('위치를 지정해주세요.'); return }
 
+  const arriveVal = document.getElementById('f-arrive').value
+  const stayVal   = parseInt(document.getElementById('f-stay').value) || 0
+  let departVal   = ''
+  if (arriveVal && stayVal) {
+    const [h, m] = arriveVal.split(':').map(Number)
+    const total  = h * 60 + m + stayVal
+    departVal = `${String(Math.floor(total / 60) % 24).padStart(2,'0')}:${String(total % 60).padStart(2,'0')}`
+  }
+
   const data = {
     name,
     type:              document.getElementById('f-type').value,
     day:               parseInt(document.getElementById('f-day').value) || 1,
-    arrive_time:       document.getElementById('f-arrive').value,
-    depart_time:       document.getElementById('f-depart').value,
+    arrive_time:       arriveVal,
+    stay_minutes:      stayVal,
+    depart_time:       departVal,
     tag:               document.getElementById('f-tag').value.trim(),
     note:              document.getElementById('f-note').value.trim(),
     transport_to_next: document.getElementById('f-transport').value,
@@ -464,13 +572,17 @@ window.deletePoint = async () => {
 }
 
 function clearForm() {
-  ['f-search','f-name','f-tag','f-note','f-arrive','f-depart','f-cost','link-url','link-label'].forEach(id => {
+  ['f-search','f-name','f-tag','f-note','f-cost','link-url','link-label'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = ''
   })
   document.getElementById('f-type').value      = 'other'
   document.getElementById('f-day').value       = '1'
   document.getElementById('f-transport').value = ''
   document.getElementById('f-duration').value  = ''
+  document.getElementById('f-arrive').value    = ''
+  document.getElementById('f-stay').value      = ''
+  const preview = document.getElementById('depart-preview')
+  if (preview) preview.style.display = 'none'
 }
 
 function fillForm(p) {
@@ -478,12 +590,13 @@ function fillForm(p) {
   document.getElementById('f-type').value      = p.type             || 'other'
   document.getElementById('f-day').value       = p.day              || 1
   document.getElementById('f-arrive').value    = p.arrive_time      || ''
-  document.getElementById('f-depart').value    = p.depart_time      || ''
+  document.getElementById('f-stay').value      = p.stay_minutes     || ''
   document.getElementById('f-tag').value       = p.tag              || ''
   document.getElementById('f-note').value      = p.note             || ''
   document.getElementById('f-transport').value = p.transport_to_next|| ''
   document.getElementById('f-duration').value  = p.duration_minutes || ''
   document.getElementById('f-cost').value      = p.cost             || ''
+  updateDepartPreview()
 }
 
 init()
