@@ -138,9 +138,10 @@ D:\Util\jaewalk\
 
 ### 사이드바
 
-- 드래그 리사이즈 가능 (좌우).
-- 최소 너비 200px, 최대 화면의 50%.
-- 완전히 접히지 않음 (최소 200px 보장).
+- 드래그 리사이즈 가능 (좌우, PC) / 터치 드래그 리사이즈 (세로, 모바일).
+- PC: 최소 너비 200px, 최대 화면의 50%.
+- 모바일: 최소 높이 120px, 최대 화면의 75%. 핸들은 사이드바 하단 가로 바.
+- 완전히 접히지 않음.
 
 ### 포인트 복사
 
@@ -178,7 +179,7 @@ Nominatim 전세계 검색 (`countrycodes` 파라미터 없음).
 
 - 번호 표시 마커 (장소 전체 순서 기준).
 - 클릭 시 팝업 → 구글지도 버튼으로 네비게이션 연동.
-- **마커 드래그는 Leaflet 지도 이동과 충돌 이슈 있음 — 미해결.**
+- 마커 드래그 가능 (`draggable: true`). `dragstart/dragend`로 map.dragging 토글 (v0.7 완료).
 
 ### 외부 링크
 
@@ -271,12 +272,25 @@ Nominatim 전세계 검색 (`countrycodes` 파라미터 없음).
 - `pdf_server.py`, `start.bat` 불필요 (삭제 가능)
 - **설치 필요**: `npm install jspdf` (한 번만)
 
-#### v0.9 이후 — 선택적 기능 (우선순위 순)
+#### v0.9 — 모바일 세로 리사이즈 ✅ 완료
 
-- 타임라인 뷰: 하루 일정 가로 시각화
-- 날씨 연동: OpenWeather API, 포인트 날짜/위치 기반
+- `index.html`: 모바일 CSS — `#sidebar-resizer`를 세로 핸들로 전환 (width:100%, height:10px, cursor:row-resize)
+- `index.html`: 리사이즈 JS — `isMobile()` 분기로 터치/마우스 모두 처리
+- `touchstart/touchmove/touchend` 이벤트 추가 (passive:false로 스크롤 방지)
+- 모바일 높이 범위: 120px ~ 75vh
+
+#### v0.10 이후 — 선택적 기능 (우선순위 순)
+
+- 여행 공유 링크: JSON을 R2에 올리고 읽기 전용 URL 생성
 - 알림 기능: Web Notifications API, 출발 N분 전
-- 이동수단 자동 추천: 거리 기반 (1km 이하 → 도보, 이상 → 우버 등)
+- 이동수단 자동 추천: 거리 기반 (1km 이하 → 도보, 이상 → 우버)
+
+**제거 결정 (불필요):**
+- 타임라인 뷰: 모바일에서 가로 스크롤 불편, PDF로 대체
+- 날씨 연동: 한 달 전 예보 불가, 날씨앱으로 충분
+- 통화 변환: 혼란 유발, 자리 차지
+- 사진 미리보기: 구글지도 딥링크로 충분
+- 체크리스트: 노트 필드로 충분
 
 ---
 
@@ -295,7 +309,6 @@ Nominatim 전세계 검색 (`countrycodes` 파라미터 없음).
 | 마커 드래그 시 지도가 이동 | Leaflet pan 이벤트 충돌 | v0.7에서 수정 완료 — dragstart/dragend로 map.dragging 토글 |
 | 외부 링크 클릭 안 됨 | (v0.3) a태그 href 누락 | v0.4에서 수정 완료 |
 | PDF 저장 안 됨 | pdf_server.py 미실행 | v0.8에서 jsPDF 방식으로 전환, 배포 환경 포함 완전 지원 |
-| Cloudflare 빌드 실패 (Rollup can't resolve import) | npm 패키지 추가 후 package-lock.json을 git에 포함 안 함 | `git add package.json package-lock.json` 후 push — lock 파일 없으면 Cloudflare `npm ci`가 새 패키지 무시함 |
 
 ---
 
@@ -311,3 +324,4 @@ Nominatim 전세계 검색 (`countrycodes` 파라미터 없음).
 | v0.6 | 2026-06-07 | 드롭다운 버그수정, 요약패널 한줄, sticky필터, 복사버튼, PDF 다운로드 (로컬전용), 시간 연쇄재계산, PWA 아이콘 경로 수정, 모바일 반응형 |
 | v0.7 | 2026-06-08 | 마커 드래그 버그 수정 완료 — map.js(draggable+dragstart/dragend 토글), main.js(handleMarkerDragEnd+recalcTimesAfter, previewMarker 토글) |
 | v0.8 | 2026-06-08 | PDF 브라우저 직접 생성 (jsPDF + NotoSansKR CDN) — pdf_server.py 제거, 배포 환경 완전 지원 |
+| v0.9 | 2026-06-09 | 모바일 세로 리사이즈 — touch 이벤트 + 가로 핸들 (index.html) |

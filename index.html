@@ -69,9 +69,10 @@
     /* 모바일 반응형 */
     @media (max-width: 600px) {
       body { flex-direction: column; }
-      #sidebar { width: 100% !important; height: 45vh; min-width: unset; border-right: none; border-bottom: 1px solid #0f3460; }
-      #sidebar-resizer { display: none; }
-      #map-container { flex: 1; height: 55vh; }
+      #sidebar { width: 100% !important; height: 45vh; min-width: unset; border-right: none; border-bottom: none; }
+      #sidebar-resizer { width: 100% !important; height: 10px !important; cursor: row-resize !important; border-top: 1px solid #0f3460; border-right: none; }
+      #sidebar-resizer::after { width: 40px !important; height: 2px !important; top: 50% !important; left: 50% !important; }
+      #map-container { flex: 1; min-height: 30vh; }
       .modal-box { width: 95vw; padding: 16px; }
       #bottom-bar { padding: 8px; }
       #bottom-actions { flex-wrap: wrap; }
@@ -332,23 +333,47 @@
 (function(){
   const sb = document.getElementById('sidebar')
   const rs = document.getElementById('sidebar-resizer')
-  let dragging = false, startX = 0, startW = 0
-  rs.addEventListener('mousedown', e => {
-    dragging = true; startX = e.clientX; startW = sb.offsetWidth
-    rs.classList.add('dragging'); e.preventDefault()
-  })
-  document.addEventListener('mousemove', e => {
+  const isMobile = () => window.innerWidth <= 600
+
+  let dragging = false, startPos = 0, startSize = 0
+
+  function onStart(pos) {
+    dragging = true
+    rs.classList.add('dragging')
+    if (isMobile()) {
+      startPos = pos; startSize = sb.offsetHeight
+    } else {
+      startPos = pos; startSize = sb.offsetWidth
+    }
+  }
+
+  function onMove(pos) {
     if (!dragging) return
-    const maxW = Math.floor(window.innerWidth * 0.5)
-    const newW = Math.max(200, Math.min(maxW, startW + (e.clientX - startX)))
-    sb.style.width = newW + 'px'
-    sb.style.minWidth = newW + 'px'
-  })
-  document.addEventListener('mouseup', () => {
+    if (isMobile()) {
+      const maxH = Math.floor(window.innerHeight * 0.75)
+      const newH = Math.max(120, Math.min(maxH, startSize + (pos - startPos)))
+      sb.style.height = newH + 'px'
+    } else {
+      const maxW = Math.floor(window.innerWidth * 0.5)
+      const newW = Math.max(200, Math.min(maxW, startSize + (pos - startPos)))
+      sb.style.width = newW + 'px'
+      sb.style.minWidth = newW + 'px'
+    }
+  }
+
+  function onEnd() {
     if (!dragging) return
     dragging = false
     rs.classList.remove('dragging')
-  })
+  }
+
+  rs.addEventListener('mousedown', e => { onStart(isMobile() ? e.clientY : e.clientX); e.preventDefault() })
+  document.addEventListener('mousemove', e => onMove(isMobile() ? e.clientY : e.clientX))
+  document.addEventListener('mouseup', onEnd)
+
+  rs.addEventListener('touchstart', e => { onStart(isMobile() ? e.touches[0].clientY : e.touches[0].clientX); e.preventDefault() }, { passive: false })
+  document.addEventListener('touchmove', e => { if (dragging) { onMove(isMobile() ? e.touches[0].clientY : e.touches[0].clientX); e.preventDefault() } }, { passive: false })
+  document.addEventListener('touchend', onEnd)
 })()
 </script>
 
