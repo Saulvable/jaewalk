@@ -295,6 +295,7 @@ Nominatim 전세계 검색 (`countrycodes` 파라미터 없음).
 | 마커 드래그 시 지도가 이동 | Leaflet pan 이벤트 충돌 | v0.7에서 수정 완료 — dragstart/dragend로 map.dragging 토글 |
 | 외부 링크 클릭 안 됨 | (v0.3) a태그 href 누락 | v0.4에서 수정 완료 |
 | PDF 저장 안 됨 | pdf_server.py 미실행 | v0.8에서 jsPDF 방식으로 전환, 배포 환경 포함 완전 지원 |
+| Cloudflare 빌드 실패 (Rollup can't resolve import) | npm 패키지 추가 후 package-lock.json을 git에 포함 안 함 | `git add package.json package-lock.json` 후 push — lock 파일 없으면 Cloudflare `npm ci`가 새 패키지 무시함 |
 
 ---
 
