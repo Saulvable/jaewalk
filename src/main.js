@@ -11,6 +11,19 @@ import {
   r2Upload, r2ListFiles, r2Delete,
   googleMapsUrl
 } from './db.js'
+import { jsPDF } from 'jspdf'
+
+// ── 나눔고딕 폰트 캐시 (앱 시작 시 한 번만 로드) ────
+let _nanumGothicB64 = null
+async function loadNanumGothic() {
+  if (_nanumGothicB64) return _nanumGothicB64
+  const url = 'https://github.com/google/fonts/raw/refs/heads/main/ofl/nanumgothic/NanumGothic-Regular.ttf'
+  const res = await fetch(url)
+  if (!res.ok) throw new Error('나눔고딕 폰트 로드 실패')
+  const buf = await res.arrayBuffer()
+  _nanumGothicB64 = btoa(String.fromCharCode(...new Uint8Array(buf)))
+  return _nanumGothicB64
+}
 
 let editingId      = null
 let editingTripId  = null
@@ -165,18 +178,24 @@ async function refreshPoints() {
     },
     onDayFilter: (day) => {
       currentDayFilter = day
-      renderPoints(points, highlightSidebarItem, day)
+      renderPoints(points, highlightSidebarItem, day, handleMarkerDragEnd)
     }
   })
 
   renderSummary(trip?.name || '', points)
-  await renderPoints(points, highlightSidebarItem, currentDayFilter)
+  await renderPoints(points, highlightSidebarItem, currentDayFilter, handleMarkerDragEnd)
 }
 
 function highlightSidebarItem(id) {
   document.querySelectorAll('.point-item').forEach(el => {
     el.classList.toggle('active', String(el.dataset.id) === String(id))
   })
+}
+
+async function handleMarkerDragEnd(id, lat, lng) {
+  await updatePoint(Number(id), { lat, lng })
+  await recalcTimesAfter(getActiveTripId())
+  await refreshPoints()
 }
 
 // ── 내보내기 / 가져오기 ─────────────────────────────
@@ -200,23 +219,130 @@ async function handlePdfDownload() {
   btn.classList.add('loading')
   btn.disabled = true
   try {
-    const json = await exportTripJson(tripId)
-    const data = JSON.parse(json)
-    const res  = await fetch('http://localhost:5174/pdf', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ trip: data.trip, points: data.points })
-    })
-    if (!res.ok) throw new Error('PDF 서버 오류')
-    const blob = await res.blob()
-    const name = (data.trip?.name || 'trip').replace(/\s+/g,'_')
-    const a = Object.assign(document.createElement('a'), {
-      href: URL.createObjectURL(blob),
-      download: `${name}_${new Date().toISOString().slice(0,10)}.pdf`
-    })
-    a.click()
+    const json   = await exportTripJson(tripId)
+    const data   = JSON.parse(json)
+    const trip   = data.trip
+    const points = data.points
+
+    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
+
+    // ── 나눔고딕 폰트 (한글+영어 모두 지원, 앱 세션 중 캐싱) ──
+    const fontB64 = await loadNanumGothic()
+    doc.addFileToVFS('NanumGothic.ttf', fontB64)
+    doc.addFont('NanumGothic.ttf', 'NanumGothic', 'normal')
+    doc.setFont('NanumGothic')
+
+    const PAGE_W = 210, PAGE_H = 297
+    const ML = 14, MR = 14, MT = 16
+    const COL_W = PAGE_W - ML - MR
+    let y = MT
+
+    const TRANSPORT_KO = { walk:'도보', car:'자동차', uber:'우버/택시', transit:'버스/전철', flight:'비행기' }
+    const TYPE_KO      = { departure:'출발지', airport:'공항', hotel:'숙소', food:'식당', attraction:'관광지', shopping:'쇼핑', transport:'교통', other:'기타' }
+
+    function fmtDurPdf(m) {
+      if (!m) return ''
+      const h = Math.floor(m / 60), r = m % 60
+      return h && r ? `${h}시간 ${r}분` : h ? `${h}시간` : `${r}분`
+    }
+
+    function checkPage(needed = 10) {
+      if (y + needed > PAGE_H - 14) { doc.addPage(); doc.setFont('NanumGothic'); y = MT }
+    }
+
+    // ── 헤더 ──────────────────────────────────────────
+    doc.setFillColor(15, 52, 96)
+    doc.rect(0, 0, PAGE_W, 22, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(15)
+    doc.text(trip.name || '여행 일정', ML, 14)
+    doc.setFontSize(8)
+    doc.setTextColor(180, 200, 220)
+    doc.text(`생성일: ${new Date().toLocaleDateString('ko-KR')}`, PAGE_W - MR, 14, { align: 'right' })
+    y = 30
+
+    // ── 요약 ──────────────────────────────────────────
+    const days      = [...new Set(points.map(p => p.day || 1))].length
+    const totalCost = points.reduce((s, p) => s + (p.cost || 0), 0)
+    doc.setFontSize(9)
+    doc.setTextColor(120, 120, 120)
+    doc.text(`총 ${days}일  ·  ${points.length}곳  ·  이동비용 $${totalCost.toFixed(0)}`, ML, y)
+    y += 9
+
+    // ── 일차별 포인트 ──────────────────────────────────
+    const grouped = {}
+    points.forEach(p => { const d = p.day || 1; (grouped[d] = grouped[d] || []).push(p) })
+
+    for (const day of Object.keys(grouped).map(Number).sort((a,b)=>a-b)) {
+      checkPage(14)
+      // 일차 헤더 바
+      doc.setFillColor(255, 61, 90)
+      doc.rect(ML, y, COL_W, 7, 'F')
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(10)
+      doc.text(`${day}일차`, ML + 3, y + 5)
+      y += 11
+
+      grouped[day].forEach((pt, idx) => {
+        checkPage(20)
+        const globalIdx = points.findIndex(p => p.id === pt.id)
+
+        // 포인트 이름
+        doc.setFontSize(10)
+        doc.setTextColor(26, 26, 46)
+        doc.text(`${globalIdx + 1}. ${pt.name}`, ML, y)
+
+        // 유형 (오른쪽)
+        doc.setFontSize(8)
+        doc.setTextColor(150, 150, 150)
+        doc.text(TYPE_KO[pt.type] || pt.type || '', PAGE_W - MR, y, { align: 'right' })
+        y += 5
+
+        // 시간
+        const timeStr = [pt.arrive_time, pt.depart_time].filter(Boolean).join(' ~ ')
+        if (timeStr) {
+          checkPage(5)
+          doc.setFontSize(8); doc.setTextColor(41, 128, 185)
+          doc.text(`  ${timeStr}`, ML, y); y += 4
+        }
+
+        // 태그
+        if (pt.tag) {
+          checkPage(5)
+          doc.setFontSize(8); doc.setTextColor(136, 136, 136)
+          doc.text(`  ${pt.tag}`, ML, y); y += 4
+        }
+
+        // 메모
+        if (pt.note) {
+          doc.setFontSize(8); doc.setTextColor(85, 85, 85)
+          const lines = doc.splitTextToSize(`  ${pt.note}`, COL_W - 8)
+          lines.forEach(line => { checkPage(5); doc.text(line, ML, y); y += 4 })
+        }
+
+        // 이동수단
+        if (idx < grouped[day].length - 1 && pt.transport_to_next) {
+          checkPage(6)
+          const tr   = TRANSPORT_KO[pt.transport_to_next] || pt.transport_to_next
+          const dur  = pt.duration_minutes ? ` · ${fmtDurPdf(pt.duration_minutes)}` : ''
+          const cost = pt.cost ? ` · $${pt.cost}` : ''
+          doc.setFontSize(8); doc.setTextColor(142, 68, 173)
+          doc.text(`  → ${tr}${dur}${cost}`, ML, y); y += 5
+        }
+
+        // 구분선
+        doc.setDrawColor(220, 220, 235)
+        doc.line(ML, y, ML + COL_W, y); y += 4
+      })
+      y += 3
+    }
+
+    // ── 저장 ──────────────────────────────────────────
+    const name = (trip.name || 'trip').replace(/\s+/g, '_')
+    doc.save(`${name}_${new Date().toISOString().slice(0,10)}.pdf`)
+
   } catch(e) {
-    alert('PDF 서버에 연결할 수 없어요.\nstart.bat을 다시 실행해보세요.\n\n' + e.message)
+    alert('PDF 생성 실패: ' + e.message)
   } finally {
     btn.textContent = '📄 PDF 다운로드'
     btn.classList.remove('loading')
@@ -352,8 +478,9 @@ function setPendingLocation(lat, lng) {
 
   previewMarker = L.marker([lat, lng], { draggable: true, opacity: 0.8, zIndexOffset: 1000 }).addTo(mapInstance)
   previewMarker.bindTooltip('드래그해서 위치 조정', { permanent: false })
+  previewMarker.on('dragstart', () => mapInstance.dragging.disable())
   previewMarker.on('drag',    e => { const p = e.target.getLatLng(); pendingLatLng = { lat: p.lat, lng: p.lng } })
-  previewMarker.on('dragend', e => { const p = e.target.getLatLng(); pendingLatLng = { lat: p.lat, lng: p.lng } })
+  previewMarker.on('dragend', e => { mapInstance.dragging.enable(); const p = e.target.getLatLng(); pendingLatLng = { lat: p.lat, lng: p.lng } })
   document.getElementById('location-confirm').style.display = 'block'
 }
 

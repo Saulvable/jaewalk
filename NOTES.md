@@ -227,28 +227,56 @@ Nominatim 전세계 검색 (`countrycodes` 파라미터 없음).
 - 요약 패널 한 줄로 압축 (여행명 + 일차 + 장소 수 + 총이동비용)
 
 **v0.5 — 배포 및 마무리** (2026-06-06)
-- PWA 아이콘 제작 완료: `public/icons/icon-192.png`, `icon-512.png` (핑크 원형 배경 + 흰색 지도 핀)
-- Cloudflare Pages 배포 → `jaewalk.pages.dev` (아래 배포 절차 참고)
-- R2 CORS 설정 완료 (배포 후 파일 업로드 정상 동작)
+- PWA 아이콘 제작 완료: `icons/icon-192.png`, `icon-512.png` (핑크 원형 배경 + 흰색 지도 핀)
+- GitHub push 완료 (Saulvable/jaewalk, main 브랜치)
+- Cloudflare Pages 배포 완료 → `jaewalk.pages.dev` live
+- R2 CORS 설정 완료 (jaewalk-files 버킷, GET/PUT/DELETE/HEAD 허용)
+- 토큰 파일 프로젝트 폴더 밖으로 이동 (`D:\Util\cloudflare_token.txt`)
+- `.gitignore`에 `*.txt`, `cloudflare_token.txt`, `data/` 추가
+- data 폴더 GitHub에서 제거 완료 (로컬에는 유지, 여행 데이터는 IndexedDB로 이전)
+
+**v0.6 — 버그수정 + PDF 기능 + 모바일 대응** (2026-06-07)
+- 드롭다운 버그 수정: `populateTimeDropdowns()` 추가, `f-depart` → `f-stay` 전환 (`src/main.js`, `src/db.js`)
+- 요약 패널 한 줄 압축, 일차 필터 sticky 정상화, 복사 버튼(⧉) 추가 (`src/ui.js`)
+- PDF 다운로드 기능 추가: `pdf_server.py` (localhost:5174), `start.bat` 동시 실행
+- 나눔고딕 폰트 경로: `C:\Users\JaeHo\AppData\Local\Microsoft\Windows\Fonts\NanumGothic.ttf`
+- PDF 형식: 테이블 스타일, 한글 지원, 다크 테마, 네이비 제목
+- **PDF는 로컬 전용** — 배포 환경에서는 미동작 → v0.8에서 jsPDF 방식으로 전환, 배포 환경 완전 지원
+- `recalcTimesAfter()` 추가 — 장소 저장/순서 이동 시 이하 포인트 시간 자동 연쇄 계산
+- 기존 여행 시간 반영: 포인트 순서 한 번 이동하면 전체 재계산됨
+- PWA 아이콘 위치 수정: `icons/` → `public/icons/` (Vite 빌드 경로 정상화)
+- 모바일 반응형 CSS 추가: 600px 이하에서 사이드바 위 45% / 지도 아래 55% 분리
+- PWA 앱 설치 완료 — 안드로이드 Chrome에서 "홈 화면에 추가"로 앱서랍/홈 화면에 아이콘 설치 확인
 
 ---
 
 ### 다음에 할 것 (우선순위 순)
 
-> 새 채팅 시작 시 이 섹션을 보고 "v0.6 작업 시작할까요?" 먼저 물어볼 것.
+> v0.7, v0.8 완료. 다음 채팅 시작 시 "v0.9 작업 시작할까요?" 먼저 물어볼 것.
 
-#### v0.6 — 마커 드래그 버그 수정
+#### v0.7 — 마커 드래그 버그 수정 ✅ 완료
 
-- 현재 증상: 마커를 마우스로 잡으면 마커 대신 지도가 이동함
-- Leaflet `draggable:true` 마커와 지도 pan 이벤트 충돌
-- 해결 방향: `mousedown` 이벤트에서 `map.dragging.disable()` → `dragend`에서 `map.dragging.enable()` 처리
+- `map.js`: 마커 `draggable: true`, `dragstart` → `map.dragging.disable()` + 팝업 닫기, `dragend` → `map.dragging.enable()` + `onMarkerDragEnd` 콜백
+- `map.js`: `renderPoints()` 시그니처 `(points, onMarkerClick, filterDay, onMarkerDragEnd)`
+- `main.js`: `handleMarkerDragEnd(id, lat, lng)` 추가 — `updatePoint()` + `recalcTimesAfter()` + `refreshPoints()`
+- `main.js`: `renderPoints()` 두 곳(메인 + onDayFilter)에 콜백 연결
+- `main.js`: 모달 `previewMarker`에도 `dragstart/dragend` map.dragging 토글 적용
 
-#### v0.7 — 기능 추가
+#### v0.8 — PDF 브라우저 직접 생성 ✅ 완료
 
-- **타임라인 뷰**: 하루 일정을 가로 타임라인으로 시각화 (별도 탭 또는 모달)
-- **날씨 연동**: OpenWeather API, 포인트 날짜/위치 기반 날씨 표시
-- **알림 기능**: Web Notifications API, 출발 N분 전 알림 (7단계)
-- **이동수단 자동 추천**: 거리 기반 (1km 이하 → 도보, 이상 → 우버 등)
+- `main.js`: `import { jsPDF } from 'jspdf'` 추가
+- `handlePdfDownload()`: localhost:5174 fetch 방식 → jsPDF 브라우저 직접 생성으로 전환
+- 폰트: NotoSansKR CDN (`cdn.jsdelivr.net`) 런타임 로드 — 번들 사이즈 증가 없음
+- 한글 완전 지원, 로컬/배포 환경 동일 동작
+- `pdf_server.py`, `start.bat` 불필요 (삭제 가능)
+- **설치 필요**: `npm install jspdf` (한 번만)
+
+#### v0.9 이후 — 선택적 기능 (우선순위 순)
+
+- 타임라인 뷰: 하루 일정 가로 시각화
+- 날씨 연동: OpenWeather API, 포인트 날짜/위치 기반
+- 알림 기능: Web Notifications API, 출발 N분 전
+- 이동수단 자동 추천: 거리 기반 (1km 이하 → 도보, 이상 → 우버 등)
 
 ---
 
@@ -264,9 +292,9 @@ Nominatim 전세계 검색 (`countrycodes` 파라미터 없음).
 | 크롬 데이터가 파이어폭스에 없음 | 브라우저별 IndexedDB 격리 | 정상 동작. JSON 내보내기로 이전 또는 R2 활용 |
 | R2 업로드 403 | CORS 미설정 | 위 CORS 설정 적용 (배포 환경) |
 | OSRM 경로 없음 | 공개 서버 일시 불가 또는 도서지역 | 자동으로 직선 fallback |
-| 마커 드래그 시 지도가 이동 | Leaflet pan 이벤트 충돌 | v0.6에서 수정 예정 (mousedown에서 dragging disable) |
+| 마커 드래그 시 지도가 이동 | Leaflet pan 이벤트 충돌 | v0.7에서 수정 완료 — dragstart/dragend로 map.dragging 토글 |
 | 외부 링크 클릭 안 됨 | (v0.3) a태그 href 누락 | v0.4에서 수정 완료 |
-| PDF 저장 안 됨 | Cloudflare Pages 미배포 상태 | Pages 배포 + R2 CORS 설정 후 가능 |
+| PDF 저장 안 됨 | pdf_server.py 미실행 | v0.8에서 jsPDF 방식으로 전환, 배포 환경 포함 완전 지원 |
 
 ---
 
@@ -279,3 +307,6 @@ Nominatim 전세계 검색 (`countrycodes` 파라미터 없음).
 | v0.3 | 2025-06-05 | IndexedDB, OSRM, R2, PWA, JSON I/O, 전세계 검색, 쇼핑 유형, 버스/전철 |
 | v0.4 | 2026-06-06 | 시간 드롭다운, 체류시간, 연쇄재계산, 포인트복사, 링크클릭, 사이드바리사이즈, sticky필터, 요약한줄 |
 | v0.5 | 2026-06-06 | PWA 아이콘 제작 (icon-192.png, icon-512.png), Cloudflare Pages 배포, R2 CORS 설정 |
+| v0.6 | 2026-06-07 | 드롭다운 버그수정, 요약패널 한줄, sticky필터, 복사버튼, PDF 다운로드 (로컬전용), 시간 연쇄재계산, PWA 아이콘 경로 수정, 모바일 반응형 |
+| v0.7 | 2026-06-08 | 마커 드래그 버그 수정 완료 — map.js(draggable+dragstart/dragend 토글), main.js(handleMarkerDragEnd+recalcTimesAfter, previewMarker 토글) |
+| v0.8 | 2026-06-08 | PDF 브라우저 직접 생성 (jsPDF + NotoSansKR CDN) — pdf_server.py 제거, 배포 환경 완전 지원 |

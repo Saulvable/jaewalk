@@ -39,7 +39,7 @@ export function clearMap() {
   markers = []; polylines = []
 }
 
-export async function renderPoints(points, onMarkerClick, filterDay = null) {
+export async function renderPoints(points, onMarkerClick, filterDay = null, onMarkerDragEnd = null) {
   clearMap()
   if (!points.length) return
 
@@ -76,9 +76,15 @@ export async function renderPoints(points, onMarkerClick, filterDay = null) {
         </div>
       </div>`
 
-    const marker = L.marker([point.lat, point.lng], { icon }).addTo(map)
+    const marker = L.marker([point.lat, point.lng], { icon, draggable: true }).addTo(map)
     marker.bindPopup(popup)
-    marker.on('click', () => { if (onMarkerClick) onMarkerClick(point.id) })
+    marker.on('click',     () => { if (onMarkerClick) onMarkerClick(point.id) })
+    marker.on('dragstart', () => { map.dragging.disable(); marker.closePopup() })
+    marker.on('dragend',   (e) => {
+      map.dragging.enable()
+      const { lat, lng } = e.target.getLatLng()
+      if (onMarkerDragEnd) onMarkerDragEnd(point.id, lat, lng)
+    })
     markers.push(marker)
   })
 
