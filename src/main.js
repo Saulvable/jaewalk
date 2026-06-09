@@ -17,7 +17,7 @@ import { jsPDF } from 'jspdf'
 let _nanumGothicB64 = null
 async function loadNanumGothic() {
   if (_nanumGothicB64) return _nanumGothicB64
-  const url = 'https://github.com/google/fonts/raw/refs/heads/main/ofl/nanumgothic/NanumGothic-Regular.ttf'
+  const url = 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/nanumgothic/NanumGothic-Regular.ttf'
   const res = await fetch(url)
   if (!res.ok) throw new Error('나눔고딕 폰트 로드 실패')
   const buf = await res.arrayBuffer()
@@ -45,7 +45,7 @@ async function init() {
   onMapClick((lat, lng) => {
     if (currentView !== 'points') return
     setPendingLocation(lat, lng)
-    if (!document.getElementById('modal-overlay').classList.contains('open')) openPointModal(null)
+    // 지도 클릭은 위치만 미리 지정 — 모달은 "+ 장소 추가" 버튼으로만 열림
   })
 
   document.getElementById('add-btn').addEventListener('click', () => {
@@ -148,15 +148,15 @@ async function showPointList(tripId) {
   document.getElementById('back-btn').style.display = 'block'
   document.getElementById('sidebar-subtitle').textContent = trip?.name || ''
   document.getElementById('add-btn').textContent = '+ 장소 추가'
-  document.getElementById('map-hint').textContent = '지도를 클릭해서 장소를 추가하세요'
+  document.getElementById('map-hint').textContent = '+ 장소 추가 버튼으로 장소를 추가하세요'
   document.getElementById('export-btn').style.display = 'block'
   document.getElementById('pdf-btn').style.display = 'block'
   document.getElementById('summary-panel').style.display = 'block'
 
-  await refreshPoints()
+  await refreshPoints(true)
 }
 
-async function refreshPoints() {
+async function refreshPoints(isInitial = false) {
   const tripId = getActiveTripId()
   if (!tripId) return
   const trips  = await loadTrips()
@@ -178,12 +178,20 @@ async function refreshPoints() {
     },
     onDayFilter: (day) => {
       currentDayFilter = day
-      renderPoints(points, highlightSidebarItem, day, handleMarkerDragEnd)
+      renderPoints(points, highlightSidebarItem, day, handleMarkerDragEnd, true)
+    },
+    onSegmentGmaps: async (fromId) => {
+      const tripId = getActiveTripId()
+      const pts    = await loadPoints(tripId)
+      const idx    = pts.findIndex(p => p.id === Number(fromId))
+      if (idx < 0 || idx >= pts.length - 1) return
+      const url = googleMapsUrl(pts[idx], pts[idx + 1], pts[idx].transport_to_next)
+      window.open(url, '_blank')
     }
   })
 
   renderSummary(trip?.name || '', points)
-  await renderPoints(points, highlightSidebarItem, currentDayFilter, handleMarkerDragEnd)
+  await renderPoints(points, highlightSidebarItem, currentDayFilter, handleMarkerDragEnd, isInitial)
 }
 
 function highlightSidebarItem(id) {
@@ -195,6 +203,7 @@ function highlightSidebarItem(id) {
 async function handleMarkerDragEnd(id, lat, lng) {
   await updatePoint(Number(id), { lat, lng })
   await recalcTimesAfter(getActiveTripId())
+  flyToPoint(lat, lng)
   await refreshPoints()
 }
 

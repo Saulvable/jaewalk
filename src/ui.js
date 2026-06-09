@@ -155,10 +155,14 @@ export function renderSidebar(points, callbacks) {
           const dur  = point.duration_minutes ? ` · ${fmtDur(point.duration_minutes)}` : ''
           const cost = point.cost ? ` · $${point.cost}` : ''
           seg.innerHTML = `<div class="segment-line" style="background:${segColor}"></div>
-            <div class="segment-info">
-              ${TRANSPORT_LABELS[point.transport_to_next] || ''}
+            <div class="segment-info" style="cursor:pointer;display:flex;align-items:center;gap:4px;">
+              <span>${TRANSPORT_LABELS[point.transport_to_next] || ''}</span>
               <span style="color:#555">${dur}${cost}</span>
+              <span style="color:#3ecfb2;font-size:10px;margin-left:4px;">🗺</span>
             </div>`
+          seg.title = '클릭 → 구글지도'
+          seg.style.cursor = 'pointer'
+          seg.addEventListener('click', () => callbacks.onSegmentGmaps?.(point.id))
         } else {
           seg.innerHTML = `<div class="segment-line" style="background:#2a2a4a"></div>
             <div class="segment-info" style="color:#444;font-size:11px;">이동수단 미입력</div>`

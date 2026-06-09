@@ -281,6 +281,18 @@ Nominatim 전세계 검색 (`countrycodes` 파라미터 없음).
 
 #### v0.10 이후 — 선택적 기능 (우선순위 순)
 
+- ✅ 메뉴/여백 최소화 — 헤더·카드·버튼·리스트 패딩 전반 축소 (index.html CSS)
+- ✅ PDF NetworkError 수정 — GitHub raw URL → jsDelivr CDN으로 교체 (main.js loadNanumGothic)
+- ✅ 가져오기 시 "(가져옴)" 제거 (db.js importTripJson)
+- ✅ 지도 클릭 → 장소추가 모달 자동오픈 제거. 버튼으로만 열림. map-hint 텍스트도 변경 (main.js)
+- ✅ 같은 위치 마커 겹침 분산 — spreadOffset() 함수로 반경 12m 원형 배치 (map.js)
+- ✅ 포인트 수정/이동/드래그 시 fitBounds 안 함 — isInitial 파라미터로 최초 로드 시에만 실행, 드래그 후엔 해당 위치로 flyTo (map.js, main.js)
+- ✅ 파비콘 (발자국 테마) — 횡단보도(사선 검흰) + 형광 오렌지 만화 발자국 2개. 파일: public/icons/icon-512.png, icon-192.png, favicon.ico (루트)
+- ✅ 사이드바 이동수단 구간 클릭 → 구글지도 오픈 — segment-item에 onSegmentGmaps 콜백 연결, 🗺 아이콘 표시 (ui.js, main.js)
+- 그리고 한곳에 여러 포인트가 있을수있잖아. 숙소같은경우는 한 장소에 여러개의 포인트가 있을텐데, 그게 다 겹쳐있어서 지도로 클릭하기 힘들어. 그거 어떻게 다 보이는 방법없나? 살짝 옆으로 빠지게 할까? 포인트가 정확하지 않아도 되니깐 어차피 건물은 크잖아. 
+- 그리고 지도 수정하거나 포인트 이동하거나 할때마다 지도가 전체 경로가 보이게끔 커지네. 그거 안해도되. 새장소가 되면 새장소 부근으로 보여주고, 포인트를 마우스나 손가락으로 이동하면 이동된 부근으로해줘. 
+- 파비콘이 없어서 웹사이트로 가면 허전하네. 파비콘 만들어줘. 근데 우리 아이콘이나 파비콘을 횡단보도걷는새발자국아니었나?
+- 지금은 구글지도보려면 지도에서 포인트를 클릭해야되잖아. 근데 목록에 이동하는 거 예를들면 자동차 45분 여기를 클릭하면 구글지도나오게 되나?
 - 여행 공유 링크: JSON을 R2에 올리고 읽기 전용 URL 생성
 - 알림 기능: Web Notifications API, 출발 N분 전
 - 이동수단 자동 추천: 거리 기반 (1km 이하 → 도보, 이상 → 우버)
@@ -325,3 +337,5 @@ Nominatim 전세계 검색 (`countrycodes` 파라미터 없음).
 | v0.7 | 2026-06-08 | 마커 드래그 버그 수정 완료 — map.js(draggable+dragstart/dragend 토글), main.js(handleMarkerDragEnd+recalcTimesAfter, previewMarker 토글) |
 | v0.8 | 2026-06-08 | PDF 브라우저 직접 생성 (jsPDF + NotoSansKR CDN) — pdf_server.py 제거, 배포 환경 완전 지원 |
 | v0.9 | 2026-06-09 | 모바일 세로 리사이즈 — touch 이벤트 + 가로 핸들 (index.html) |
+| v0.10 | 2026-06-08 | 여백 최소화(index.html), PDF CDN 수정(main.js), 가져옴 제거(db.js), 지도클릭 장소추가 제거(main.js), 마커 겹침 분산(map.js), fitBounds 조건화+드래그 후 flyTo(map.js/main.js), 세그먼트 클릭→구글지도(ui.js/main.js) |
+| v0.11 | 2026-06-09 | 파비콘 신규 — 사선 횡단보도 + 형광 오렌지 만화 발자국 2개. icon-512.png, icon-192.png, favicon.ico. index.html에 favicon.ico, apple-touch-icon 링크 추가 |

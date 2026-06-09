@@ -39,7 +39,24 @@ export function clearMap() {
   markers = []; polylines = []
 }
 
-export async function renderPoints(points, onMarkerClick, filterDay = null, onMarkerDragEnd = null) {
+// ⑤ 같은 위치 마커를 조금씩 분산시키는 함수
+function spreadOffset(points, index) {
+  const pt = points[index]
+  const THRESH = 0.00005 // 약 5m 이내면 같은 위치로 간주
+  const sameGroup = points
+    .map((p, i) => ({ p, i }))
+    .filter(({ p }) => Math.abs(p.lat - pt.lat) < THRESH && Math.abs(p.lng - pt.lng) < THRESH)
+  if (sameGroup.length <= 1) return { lat: pt.lat, lng: pt.lng }
+  const posInGroup = sameGroup.findIndex(({ i }) => i === index)
+  const angle = (2 * Math.PI * posInGroup) / sameGroup.length
+  const radius = 0.00012 // 약 12m
+  return {
+    lat: pt.lat + radius * Math.cos(angle),
+    lng: pt.lng + radius * Math.sin(angle)
+  }
+}
+
+export async function renderPoints(points, onMarkerClick, filterDay = null, onMarkerDragEnd = null, isInitial = false) {
   clearMap()
   if (!points.length) return
 
@@ -49,6 +66,8 @@ export async function renderPoints(points, onMarkerClick, filterDay = null, onMa
     const color      = TYPE_COLORS[point.type] || '#607D8B'
     const globalIdx  = points.findIndex(p => p.id === point.id)
     const icon       = createMarkerIcon(color, String(globalIdx + 1))
+    const visIdx     = visible.findIndex(p => p.id === point.id)
+    const pos        = spreadOffset(visible, visIdx)
     const timeStr    = [point.arrive_time, point.depart_time].filter(Boolean).join(' ~ ')
     const linksHtml  = (point.external_links || [])
       .map(l => `<a href="${l.url}" target="_blank" style="color:#FF3D5A;font-size:11px;display:block;margin-top:3px">🔗 ${l.label || l.url}</a>`)
@@ -76,7 +95,7 @@ export async function renderPoints(points, onMarkerClick, filterDay = null, onMa
         </div>
       </div>`
 
-    const marker = L.marker([point.lat, point.lng], { icon, draggable: true }).addTo(map)
+    const marker = L.marker([pos.lat, pos.lng], { icon, draggable: true }).addTo(map)
     marker.bindPopup(popup)
     marker.on('click',     () => { if (onMarkerClick) onMarkerClick(point.id) })
     marker.on('dragstart', () => { map.dragging.disable(); marker.closePopup() })
@@ -124,8 +143,11 @@ export async function renderPoints(points, onMarkerClick, filterDay = null, onMa
     polylines.push(line)
   }
 
-  if (visible.length === 1) map.setView([visible[0].lat, visible[0].lng], 14)
-  else map.fitBounds(L.latLngBounds(visible.map(p => [p.lat, p.lng])), { padding: [50, 50] })
+  // ⑥ 초기 로드 시에만 지도 범위 맞춤, 수정/이동 시엔 현재 뷰 유지
+  if (isInitial) {
+    if (visible.length === 1) map.setView([visible[0].lat, visible[0].lng], 14)
+    else map.fitBounds(L.latLngBounds(visible.map(p => [p.lat, p.lng])), { padding: [50, 50] })
+  }
 }
 
 export function flyToPoint(lat, lng) {

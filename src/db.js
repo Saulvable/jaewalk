@@ -391,7 +391,7 @@ export async function exportTripJson(tripId) {
 
 export async function importTripJson(jsonStr) {
   const { trip, points } = JSON.parse(jsonStr)
-  const newTrip = await addTrip({ name: trip.name + ' (가져옴)', description: trip.description || '' })
+  const newTrip = await addTrip({ name: trip.name, description: trip.description || '' })
   for (const p of points) await addPoint(newTrip.id, p)
   return newTrip
 }
