@@ -117,7 +117,7 @@ export function renderSidebar(points, callbacks) {
           <div class="point-order-btns">
             <button class="order-btn" data-action="up"   data-id="${point.id}" ${isFirst ? 'disabled style="opacity:0.2"' : ''}>▲</button>
             <button class="order-btn" data-action="down" data-id="${point.id}" ${isLast  ? 'disabled style="opacity:0.2"' : ''}>▼</button>
-            <button class="order-btn" data-action="copy" data-id="${point.id}" title="복사" style="margin-top:2px;font-size:11px;color:#3ecfb2">⧉</button>
+            <button class="order-btn" data-action="copy" data-id="${point.id}" title="복사" style="font-size:11px;color:#3ecfb2">⧉</button>
           </div>
         </div>
         <div class="point-meta">

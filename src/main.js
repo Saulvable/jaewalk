@@ -1,5 +1,5 @@
 // main.js — JaeWalk 앱 메인
-import { initMap, onMapClick, renderPoints, flyToPoint, clearMap } from './map.js'
+import { initMap, onMapClick, renderPoints, flyToPoint, clearMap, getMapView, setMapView } from './map.js'
 import { renderSidebar, renderTripList, renderSummary } from './ui.js'
 import {
   loadTrips, addTrip, updateTrip, deleteTrip,
@@ -21,7 +21,13 @@ async function loadNanumGothic() {
   const res = await fetch(url)
   if (!res.ok) throw new Error('나눔고딕 폰트 로드 실패')
   const buf = await res.arrayBuffer()
-  _nanumGothicB64 = btoa(String.fromCharCode(...new Uint8Array(buf)))
+  const bytes = new Uint8Array(buf)
+  let binary = ''
+  const CHUNK = 8192
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK))
+  }
+  _nanumGothicB64 = btoa(binary)
   return _nanumGothicB64
 }
 
@@ -165,8 +171,8 @@ async function refreshPoints(isInitial = false) {
 
   renderSidebar(points, {
     onEdit:      openPointModal,
-    onMoveUp:    async (id) => { await movePointUp(Number(id));   await recalcTimesAfter(getActiveTripId()); refreshPoints() },
-    onMoveDown:  async (id) => { await movePointDown(Number(id)); await recalcTimesAfter(getActiveTripId()); refreshPoints() },
+    onMoveUp:    async (id) => { const v = getMapView(); await movePointUp(Number(id));   await recalcTimesAfter(getActiveTripId()); await refreshPoints(); setMapView(v) },
+    onMoveDown:  async (id) => { const v = getMapView(); await movePointDown(Number(id)); await recalcTimesAfter(getActiveTripId()); await refreshPoints(); setMapView(v) },
     onCopy: async (id) => {
       const tripId = getActiveTripId()
       const points = await loadPoints(tripId)
@@ -178,7 +184,7 @@ async function refreshPoints(isInitial = false) {
     },
     onDayFilter: (day) => {
       currentDayFilter = day
-      renderPoints(points, highlightSidebarItem, day, handleMarkerDragEnd, true)
+      renderPoints(points, highlightSidebarItem, day, handleMarkerDragEnd, false)
     },
     onSegmentGmaps: async (fromId) => {
       const tripId = getActiveTripId()
@@ -732,6 +738,10 @@ window.savePoint = async () => {
     lng:               pendingLatLng.lng
   }
 
+  const isNew = !editingId
+  const savedView = isNew ? null : getMapView()
+  const newLat = pendingLatLng.lat, newLng = pendingLatLng.lng
+
   if (editingId) await updatePoint(Number(editingId), data)
   else           await addPoint(getActiveTripId(), data)
 
@@ -740,15 +750,21 @@ window.savePoint = async () => {
   clearPreviewMarker()
   closeModal()
   await refreshPoints()
+
+  // 새 포인트면 해당 위치로, 수정이면 이전 지도 위치 복원
+  if (isNew) flyToPoint(newLat, newLng)
+  else if (savedView) setMapView(savedView)
 }
 
 window.deletePoint = async () => {
   if (!editingId) return
   if (!confirm('이 장소를 삭제할까요?')) return
+  const savedView = getMapView()
   await dbDeletePoint(Number(editingId))
   clearPreviewMarker()
   closeModal()
   await refreshPoints()
+  setMapView(savedView)
 }
 
 function clearForm() {

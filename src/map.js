@@ -42,14 +42,14 @@ export function clearMap() {
 // ⑤ 같은 위치 마커를 조금씩 분산시키는 함수
 function spreadOffset(points, index) {
   const pt = points[index]
-  const THRESH = 0.00005 // 약 5m 이내면 같은 위치로 간주
+  const THRESH = 0.0002 // 약 20m 이내면 같은 위치로 간주 (건물 크기 고려)
   const sameGroup = points
     .map((p, i) => ({ p, i }))
     .filter(({ p }) => Math.abs(p.lat - pt.lat) < THRESH && Math.abs(p.lng - pt.lng) < THRESH)
   if (sameGroup.length <= 1) return { lat: pt.lat, lng: pt.lng }
   const posInGroup = sameGroup.findIndex(({ i }) => i === index)
   const angle = (2 * Math.PI * posInGroup) / sameGroup.length
-  const radius = 0.00012 // 약 12m
+  const radius = 0.00025 // 약 25m — 건물 크기 내에서 확실히 분리
   return {
     lat: pt.lat + radius * Math.cos(angle),
     lng: pt.lng + radius * Math.sin(angle)
@@ -158,4 +158,13 @@ function fmtDur(m) {
   if (!m) return ''
   const h = Math.floor(m / 60), r = m % 60
   return h && r ? `${h}시간 ${r}분` : h ? `${h}시간` : `${r}분`
+}
+
+export function getMapView() {
+  const c = map.getCenter()
+  return { lat: c.lat, lng: c.lng, zoom: map.getZoom() }
+}
+
+export function setMapView(view) {
+  map.setView([view.lat, view.lng], view.zoom, { animate: false })
 }
