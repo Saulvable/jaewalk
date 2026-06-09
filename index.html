@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>JaeWalk</title>
+  <link rel="icon" href="/favicon.ico"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon.ico"/>
+  <link rel="apple-touch-icon" href="/icons/icon-192.png"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
@@ -11,9 +14,9 @@
 
     /* ── 사이드바 ── */
     #sidebar { width:320px; min-width:200px; background:#16213e; border-right:1px solid #0f3460; display:flex; flex-direction:column; overflow:hidden; }
-    #sidebar-header { padding:10px 16px 8px; border-bottom:1px solid #0f3460; background:#0f3460; flex-shrink:0; }
-    #sidebar-header-row { display:flex; align-items:center; gap:8px; margin-bottom:3px; }
-    #sidebar-header h1 { font-size:22px; font-weight:700; color:#FF3D5A; letter-spacing:2px; flex:1; }
+    #sidebar-header { padding:6px 12px 5px; border-bottom:1px solid #0f3460; background:#0f3460; flex-shrink:0; }
+    #sidebar-header-row { display:flex; align-items:center; gap:6px; margin-bottom:2px; }
+    #sidebar-header h1 { font-size:18px; font-weight:700; color:#FF3D5A; letter-spacing:2px; flex:1; }
     #back-btn { display:none; background:transparent; border:1px solid #FF3D5A44; color:#FF3D5A; border-radius:6px; padding:3px 10px; font-size:12px; cursor:pointer; }
     #back-btn:hover { background:#FF3D5A22; }
     #sidebar-subtitle { font-size:11px; color:#888; letter-spacing:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -22,17 +25,17 @@
     #summary-panel { display:none; padding:6px 14px; background:#12193a; border-bottom:1px solid #0f3460; flex-shrink:0; }
 
     /* 일차 필터 — sticky */
-    .day-filter-bar { position:sticky; top:0; z-index:5; background:#16213e; display:flex; gap:6px; padding:8px 12px 8px; flex-wrap:wrap; border-bottom:1px solid #0f346022; }
+    .day-filter-bar { position:sticky; top:0; z-index:5; background:#16213e; display:flex; gap:4px; padding:5px 8px; flex-wrap:wrap; border-bottom:1px solid #0f346022; }
     .day-filter-btn {
       background:#1a1a2e; border:1px solid #0f3460; color:#888; border-radius:16px;
       padding:4px 12px; font-size:11px; cursor:pointer; transition:all .15s;
     }
     .day-filter-btn.active, .day-filter-btn:hover { background:#FF3D5A22; border-color:#FF3D5A; color:#FF3D5A; }
 
-    #point-list { flex:1; overflow-y:auto; padding:8px 12px 12px; }
+    #point-list { flex:1; overflow-y:auto; padding:6px 10px 8px; }
 
     /* 포인트 카드 */
-    .point-item { background:#1a1a2e; border:1px solid #0f3460; border-radius:10px; padding:14px; margin-bottom:10px; cursor:pointer; transition:all .2s; }
+    .point-item { background:#1a1a2e; border:1px solid #0f3460; border-radius:8px; padding:8px 10px; margin-bottom:6px; cursor:pointer; transition:all .2s; }
     .point-item:hover, .point-item.active { border-color:#FF3D5A; background:#1e1e3a; }
     .point-header { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
     .point-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
@@ -49,15 +52,15 @@
     .segment-info { flex:1; }
 
     /* 하단 버튼들 */
-    #bottom-bar { padding:10px 12px; display:flex; flex-direction:column; gap:6px; flex-shrink:0; }
-    #add-btn { padding:12px; background:#FF3D5A; border:none; border-radius:10px; color:white; font-size:14px; font-weight:600; cursor:pointer; letter-spacing:1px; transition:all .2s; }
+    #bottom-bar { padding:7px 10px; display:flex; flex-direction:column; gap:5px; flex-shrink:0; }
+    #add-btn { padding:8px; background:#FF3D5A; border:none; border-radius:8px; color:white; font-size:13px; font-weight:600; cursor:pointer; letter-spacing:1px; transition:all .2s; }
     #add-btn:hover { background:#e03050; transform:translateY(-1px); }
     #bottom-actions { display:flex; gap:6px; }
-    #export-btn, #pdf-btn { display:none; flex:1; padding:8px; background:#0f3460; border:1px solid #1e3a6a; border-radius:8px; color:#aaa; font-size:12px; cursor:pointer; }
+    #export-btn, #pdf-btn { display:none; flex:1; padding:6px; background:#0f3460; border:1px solid #1e3a6a; border-radius:6px; color:#aaa; font-size:11px; cursor:pointer; }
     #export-btn:hover { border-color:#FF3D5A; color:#FF3D5A; }
     #pdf-btn:hover { border-color:#3ecfb2; color:#3ecfb2; }
     #pdf-btn.loading { opacity:0.5; cursor:wait; }
-    #import-label { flex:1; padding:8px; background:#0f3460; border:1px solid #1e3a6a; border-radius:8px; color:#aaa; font-size:12px; cursor:pointer; text-align:center; display:block; }
+    #import-label { flex:1; padding:6px; background:#0f3460; border:1px solid #1e3a6a; border-radius:6px; color:#aaa; font-size:11px; cursor:pointer; text-align:center; display:block; }
     #import-label:hover { border-color:#FF3D5A; color:#FF3D5A; }
     #import-file { display:none; }
 
