@@ -64,6 +64,7 @@ async function init() {
   // 내보내기/가져오기
   document.getElementById('export-btn').addEventListener('click', handleExport)
   document.getElementById('pdf-btn').addEventListener('click', handlePdfDownload)
+  document.getElementById('alarm-btn').addEventListener('click', handleAlarm)
   document.getElementById('import-file').addEventListener('change', handleImport)
 
   // 검색
@@ -126,6 +127,7 @@ async function showTripList() {
   document.getElementById('map-hint').textContent = '여행을 선택하거나 새로 만드세요'
   document.getElementById('export-btn').style.display = 'none'
   document.getElementById('pdf-btn').style.display = 'none'
+  document.getElementById('alarm-btn').style.display = 'none'
   document.getElementById('summary-panel').style.display = 'none'
 
   clearMap()
@@ -157,6 +159,7 @@ async function showPointList(tripId) {
   document.getElementById('map-hint').textContent = '+ 장소 추가 버튼으로 장소를 추가하세요'
   document.getElementById('export-btn').style.display = 'block'
   document.getElementById('pdf-btn').style.display = 'block'
+  document.getElementById('alarm-btn').style.display = 'block'
   document.getElementById('summary-panel').style.display = 'block'
 
   await refreshPoints(true)
@@ -178,7 +181,7 @@ async function refreshPoints(isInitial = false) {
       const points = await loadPoints(tripId)
       const point  = points.find(p => p.id === Number(id))
       if (!point) return
-      const copy = { ...point, id: undefined, name: point.name + ' (복사)', arrive_time: '', depart_time: '', stay_minutes: 0 }
+      const copy = { ...point, id: undefined, arrive_time: '', depart_time: '', stay_minutes: 0 }
       await addPoint(tripId, copy)
       refreshPoints()
     },
@@ -211,6 +214,87 @@ async function handleMarkerDragEnd(id, lat, lng) {
   await recalcTimesAfter(getActiveTripId())
   flyToPoint(lat, lng)
   await refreshPoints()
+}
+
+// ── 알림 기능 ─────────────────────────────────────────
+// 포인트별 타이머 ID 저장
+let _alarmTimers = []
+let _alarmActive = false
+
+async function handleAlarm() {
+  const btn = document.getElementById('alarm-btn')
+
+  // 이미 알림 활성화 중이면 취소
+  if (_alarmActive) {
+    _alarmTimers.forEach(t => clearTimeout(t))
+    _alarmTimers = []
+    _alarmActive = false
+    btn.classList.remove('active')
+    btn.textContent = '🔔 알림 설정'
+    return
+  }
+
+  // 알림 권한 요청
+  if (!('Notification' in window)) {
+    alert('이 브라우저는 알림을 지원하지 않아요.\n안드로이드 Chrome에서 홈 화면 앱으로 설치 후 사용하세요.')
+    return
+  }
+
+  let perm = Notification.permission
+  if (perm === 'denied') {
+    alert('알림이 차단되어 있어요.\n브라우저 설정에서 jaewalk.pages.dev 알림을 허용해주세요.')
+    return
+  }
+  if (perm !== 'granted') {
+    perm = await Notification.requestPermission()
+  }
+  if (perm !== 'granted') return
+
+  // 오늘 날짜 기준 포인트 스케줄 등록
+  const tripId = getActiveTripId()
+  if (!tripId) return
+  const points = await loadPoints(tripId)
+
+  const ADVANCE_MIN = 5  // 출발 5분 전 알림
+  const now = new Date()
+  let scheduled = 0
+
+  points.forEach((pt, idx) => {
+    if (!pt.depart_time) return  // depart_time 없으면 스킵
+    const [h, m] = pt.depart_time.split(':').map(Number)
+    const target = new Date(now)
+    target.setHours(h, m - ADVANCE_MIN, 0, 0)
+    const delay = target - now
+    if (delay <= 0) return  // 이미 지난 시간은 스킵
+
+    const timer = setTimeout(() => {
+      const nextPt = points[idx + 1]
+      const title = `🗺 JaeWalk — 출발 ${ADVANCE_MIN}분 전`
+      const body  = nextPt
+        ? `${pt.name} → ${nextPt.name} (${pt.transport_to_next ? pt.transport_to_next : '이동'})`
+        : `${pt.name} 출발 준비`
+
+      // 소리 있는 알림 (앱 설치 환경에서 기본 소리 재생됨)
+      new Notification(title, {
+        body,
+        icon: '/icons/icon-192.png',
+        badge: '/icons/icon-192.png',
+        silent: false
+      })
+    }, delay)
+
+    _alarmTimers.push(timer)
+    scheduled++
+  })
+
+  if (scheduled === 0) {
+    alert('오늘 스케줄에서 알림을 등록할 출발 시간이 없어요.\n포인트에 도착/체류 시간을 입력해주세요.')
+    return
+  }
+
+  _alarmActive = true
+  btn.classList.add('active')
+  btn.textContent = `🔔 알림 ON (${scheduled}개)`
 }
 
 // ── 내보내기 / 가져오기 ─────────────────────────────
@@ -248,7 +332,7 @@ async function handlePdfDownload() {
     doc.setFont('NanumGothic')
 
     const PAGE_W = 210, PAGE_H = 297
-    const ML = 14, MR = 14, MT = 16
+    const ML = 10, MR = 10, MT = 16
     const COL_W = PAGE_W - ML - MR
     let y = MT
 
@@ -265,91 +349,135 @@ async function handlePdfDownload() {
       if (y + needed > PAGE_H - 14) { doc.addPage(); doc.setFont('NanumGothic'); y = MT }
     }
 
+    // 테이블 컬럼 정의 (x위치, 너비)
+    // #(6) | 장소명(52) | 유형(16) | 도착(14) | 출발(14) | 이동수단(20) | 소요(16) | 비용(12) | 메모(나머지)
+    const C = {
+      num:   { x: ML,       w: 6  },
+      name:  { x: ML+6,     w: 52 },
+      type:  { x: ML+58,    w: 16 },
+      arr:   { x: ML+74,    w: 14 },
+      dep:   { x: ML+88,    w: 14 },
+      trans: { x: ML+102,   w: 20 },
+      dur:   { x: ML+122,   w: 16 },
+      cost:  { x: ML+138,   w: 12 },
+      note:  { x: ML+150,   w: COL_W-150 },
+    }
+    const ROW_H = 7
+
+    function tableHeader() {
+      doc.setFillColor(15, 52, 96)
+      doc.rect(ML, y, COL_W, ROW_H, 'F')
+      doc.setTextColor(200, 220, 240)
+      doc.setFontSize(7)
+      const headers = [
+        ['#', C.num], ['장소', C.name], ['유형', C.type],
+        ['도착', C.arr], ['출발', C.dep], ['이동수단', C.trans],
+        ['소요', C.dur], ['비용', C.cost], ['메모', C.note]
+      ]
+      headers.forEach(([label, col]) => {
+        doc.text(label, col.x + 1, y + 5)
+      })
+      y += ROW_H
+    }
+
+    function tableRow(num, pt, isEven) {
+      // 행 배경
+      if (isEven) {
+        doc.setFillColor(245, 247, 252)
+        doc.rect(ML, y, COL_W, ROW_H, 'F')
+      }
+
+      doc.setTextColor(60, 60, 80)
+      doc.setFontSize(8)
+
+      const timeArr  = pt.arrive_time  || ''
+      const timeDep  = pt.depart_time  || ''
+      const transStr = TRANSPORT_KO[pt.transport_to_next] || ''
+      const durStr   = fmtDurPdf(pt.duration_minutes)
+      const costStr  = pt.cost ? `$${pt.cost}` : ''
+      const typeStr  = TYPE_KO[pt.type] || pt.type || ''
+
+      // 메모 (태그 + 메모 합치기)
+      const noteParts = [pt.tag, pt.note].filter(Boolean)
+      const noteStr   = noteParts.join(' | ')
+
+      // 각 셀 텍스트 (너비 초과 시 잘라냄)
+      function cellText(text, col) {
+        const truncated = doc.splitTextToSize(String(text), col.w - 2)[0] || ''
+        doc.text(truncated, col.x + 1, y + 5)
+      }
+
+      doc.setTextColor(100, 100, 120)
+      cellText(num, C.num)
+      doc.setTextColor(26, 26, 46)
+      doc.setFontSize(8)
+      cellText(pt.name, C.name)
+      doc.setFontSize(7)
+      doc.setTextColor(120, 120, 140)
+      cellText(typeStr, C.type)
+      doc.setTextColor(41, 128, 185)
+      cellText(timeArr, C.arr)
+      cellText(timeDep, C.dep)
+      doc.setTextColor(142, 68, 173)
+      cellText(transStr, C.trans)
+      doc.setTextColor(80, 80, 100)
+      cellText(durStr, C.dur)
+      doc.setTextColor(231, 76, 60)
+      cellText(costStr, C.cost)
+      doc.setTextColor(85, 85, 85)
+      doc.setFontSize(7)
+      cellText(noteStr, C.note)
+
+      // 행 구분선
+      doc.setDrawColor(220, 225, 235)
+      doc.line(ML, y + ROW_H, ML + COL_W, y + ROW_H)
+      y += ROW_H
+    }
+
     // ── 헤더 ──────────────────────────────────────────
-    doc.setFillColor(15, 52, 96)
-    doc.rect(0, 0, PAGE_W, 22, 'F')
+    doc.setFillColor(10, 40, 80)
+    doc.rect(0, 0, PAGE_W, 20, 'F')
     doc.setTextColor(255, 255, 255)
-    doc.setFontSize(15)
-    doc.text(trip.name || '여행 일정', ML, 14)
+    doc.setFontSize(14)
+    doc.text(trip.name || '여행 일정', ML, 13)
     doc.setFontSize(8)
-    doc.setTextColor(180, 200, 220)
-    doc.text(`생성일: ${new Date().toLocaleDateString('ko-KR')}`, PAGE_W - MR, 14, { align: 'right' })
-    y = 30
+    doc.setTextColor(160, 190, 220)
+    doc.text(`Generated by JaeWalk`, PAGE_W - MR, 13, { align: 'right' })
+    y = 26
 
-    // ── 요약 ──────────────────────────────────────────
-    const days      = [...new Set(points.map(p => p.day || 1))].length
-    const totalCost = points.reduce((s, p) => s + (p.cost || 0), 0)
-    doc.setFontSize(9)
-    doc.setTextColor(120, 120, 120)
-    doc.text(`총 ${days}일  ·  ${points.length}곳  ·  이동비용 $${totalCost.toFixed(0)}`, ML, y)
-    y += 9
-
-    // ── 일차별 포인트 ──────────────────────────────────
+    // ── 일차별 포인트 테이블 ──────────────────────────
     const grouped = {}
     points.forEach(p => { const d = p.day || 1; (grouped[d] = grouped[d] || []).push(p) })
 
     for (const day of Object.keys(grouped).map(Number).sort((a,b)=>a-b)) {
-      checkPage(14)
-      // 일차 헤더 바
-      doc.setFillColor(255, 61, 90)
-      doc.rect(ML, y, COL_W, 7, 'F')
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(10)
-      doc.text(`${day}일차`, ML + 3, y + 5)
-      y += 11
+      checkPage(ROW_H * 3)
+
+      // 일차 헤더
+      doc.setFillColor(30, 30, 60)
+      doc.rect(ML, y, COL_W, 6, 'F')
+      doc.setTextColor(255, 200, 100)
+      doc.setFontSize(9)
+      doc.text(`Day ${day}`, ML + 2, y + 4.5)
+      y += 8
+
+      tableHeader()
 
       grouped[day].forEach((pt, idx) => {
-        checkPage(20)
+        checkPage(ROW_H + 2)
         const globalIdx = points.findIndex(p => p.id === pt.id)
-
-        // 포인트 이름
-        doc.setFontSize(10)
-        doc.setTextColor(26, 26, 46)
-        doc.text(`${globalIdx + 1}. ${pt.name}`, ML, y)
-
-        // 유형 (오른쪽)
-        doc.setFontSize(8)
-        doc.setTextColor(150, 150, 150)
-        doc.text(TYPE_KO[pt.type] || pt.type || '', PAGE_W - MR, y, { align: 'right' })
-        y += 5
-
-        // 시간
-        const timeStr = [pt.arrive_time, pt.depart_time].filter(Boolean).join(' ~ ')
-        if (timeStr) {
-          checkPage(5)
-          doc.setFontSize(8); doc.setTextColor(41, 128, 185)
-          doc.text(`  ${timeStr}`, ML, y); y += 4
-        }
-
-        // 태그
-        if (pt.tag) {
-          checkPage(5)
-          doc.setFontSize(8); doc.setTextColor(136, 136, 136)
-          doc.text(`  ${pt.tag}`, ML, y); y += 4
-        }
-
-        // 메모
-        if (pt.note) {
-          doc.setFontSize(8); doc.setTextColor(85, 85, 85)
-          const lines = doc.splitTextToSize(`  ${pt.note}`, COL_W - 8)
-          lines.forEach(line => { checkPage(5); doc.text(line, ML, y); y += 4 })
-        }
-
-        // 이동수단
-        if (idx < grouped[day].length - 1 && pt.transport_to_next) {
-          checkPage(6)
-          const tr   = TRANSPORT_KO[pt.transport_to_next] || pt.transport_to_next
-          const dur  = pt.duration_minutes ? ` · ${fmtDurPdf(pt.duration_minutes)}` : ''
-          const cost = pt.cost ? ` · $${pt.cost}` : ''
-          doc.setFontSize(8); doc.setTextColor(142, 68, 173)
-          doc.text(`  → ${tr}${dur}${cost}`, ML, y); y += 5
-        }
-
-        // 구분선
-        doc.setDrawColor(220, 220, 235)
-        doc.line(ML, y, ML + COL_W, y); y += 4
+        tableRow(globalIdx + 1, pt, idx % 2 === 1)
       })
-      y += 3
+
+      y += 4
+    }
+
+    // ── 푸터 ──────────────────────────────────────────
+    const pageCount = doc.getNumberOfPages()
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i)
+      doc.setFontSize(7)
+      doc.setTextColor(180, 180, 180)
+      doc.text(`${i} / ${pageCount}`, PAGE_W - MR, PAGE_H - 6, { align: 'right' })
     }
 
     // ── 저장 ──────────────────────────────────────────

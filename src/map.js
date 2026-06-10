@@ -11,9 +11,7 @@ export function initMap() {
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors', maxZoom: 19
   }).addTo(map)
-  map.on('click', (e) => {
-    if (onMapClickCallback) onMapClickCallback(e.latlng.lat, e.latlng.lng)
-  })
+  // 지도 클릭 시 아무 동작 없음 — 포인트는 "+ 장소 추가" 버튼으로만 추가
   return map
 }
 
@@ -42,14 +40,14 @@ export function clearMap() {
 // ⑤ 같은 위치 마커를 조금씩 분산시키는 함수
 function spreadOffset(points, index) {
   const pt = points[index]
-  const THRESH = 0.0002 // 약 20m 이내면 같은 위치로 간주 (건물 크기 고려)
+  const THRESH = 0.00005 // 약 5m 이내면 같은 위치로 간주
   const sameGroup = points
     .map((p, i) => ({ p, i }))
     .filter(({ p }) => Math.abs(p.lat - pt.lat) < THRESH && Math.abs(p.lng - pt.lng) < THRESH)
   if (sameGroup.length <= 1) return { lat: pt.lat, lng: pt.lng }
   const posInGroup = sameGroup.findIndex(({ i }) => i === index)
   const angle = (2 * Math.PI * posInGroup) / sameGroup.length
-  const radius = 0.00025 // 약 25m — 건물 크기 내에서 확실히 분리
+  const radius = 0.00008 // 약 8m — 최대 줌에서 확실히 분리, 인접 건물 침범 안 함
   return {
     lat: pt.lat + radius * Math.cos(angle),
     lng: pt.lng + radius * Math.sin(angle)
