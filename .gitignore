@@ -6,3 +6,5 @@ dist/
 
 *.txt
 cloudflare_token.txt
+
+data/

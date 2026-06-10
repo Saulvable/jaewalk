@@ -381,6 +381,26 @@ export async function r2ListFiles(tripId) {
   }))
 }
 
+// ── 여행 공유 링크 (R2) ────────────────────────────
+
+// JSON을 R2 shares/ 에 올리고 공개 URL 반환
+// 같은 tripId로 덮어쓰면 URL 그대로 → 항상 최신 내용
+export async function r2ShareUpload(tripId, jsonStr) {
+  const key         = `shares/${tripId}.json`
+  const blob        = new Blob([jsonStr], { type: 'application/json' })
+  const res         = await signedR2Request('PUT', key, blob, 'application/json')
+  if (!res.ok) throw new Error(`공유 업로드 실패: ${res.status}`)
+  return `${R2_ENDPOINT}/${R2_BUCKET}/${key}`
+}
+
+// 공유 URL에서 JSON 로드
+export async function r2ShareLoad(tripId) {
+  const url = `${R2_ENDPOINT}/${R2_BUCKET}/shares/${tripId}.json`
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`공유 데이터 로드 실패: ${res.status}`)
+  return res.text()
+}
+
 // ── JSON 내보내기 / 가져오기 ───────────────────────
 
 export async function exportTripJson(tripId) {

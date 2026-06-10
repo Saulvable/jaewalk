@@ -9,6 +9,7 @@ import {
   migrateOldData,
   exportTripJson, importTripJson,
   r2Upload, r2ListFiles, r2Delete,
+  r2ShareUpload, r2ShareLoad,
   googleMapsUrl
 } from './db.js'
 import { jsPDF } from 'jspdf'
@@ -64,6 +65,7 @@ async function init() {
   // 내보내기/가져오기
   document.getElementById('export-btn').addEventListener('click', handleExport)
   document.getElementById('pdf-btn').addEventListener('click', handlePdfDownload)
+  document.getElementById('share-btn').addEventListener('click', handleShare)
   document.getElementById('alarm-btn').addEventListener('click', handleAlarm)
   document.getElementById('import-file').addEventListener('change', handleImport)
 
@@ -107,6 +109,13 @@ async function init() {
   document.getElementById('modal-overlay').addEventListener('click',      (e) => { if (e.target === e.currentTarget) closeModal() })
   document.getElementById('trip-modal-overlay').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeTripModal() })
 
+  // ?share= 파라미터 감지 → 읽기전용으로 공유 여행 열기
+  const shareId = new URLSearchParams(location.search).get('share')
+  if (shareId) {
+    await handleSharedTrip(shareId)
+    return
+  }
+
   const activeId = getActiveTripId()
   if (activeId) {
     const trips = await loadTrips()
@@ -127,6 +136,7 @@ async function showTripList() {
   document.getElementById('map-hint').textContent = '여행을 선택하거나 새로 만드세요'
   document.getElementById('export-btn').style.display = 'none'
   document.getElementById('pdf-btn').style.display = 'none'
+  document.getElementById('share-btn').style.display = 'none'
   document.getElementById('alarm-btn').style.display = 'none'
   document.getElementById('summary-panel').style.display = 'none'
 
@@ -159,6 +169,7 @@ async function showPointList(tripId) {
   document.getElementById('map-hint').textContent = '+ 장소 추가 버튼으로 장소를 추가하세요'
   document.getElementById('export-btn').style.display = 'block'
   document.getElementById('pdf-btn').style.display = 'block'
+  document.getElementById('share-btn').style.display = 'block'
   document.getElementById('alarm-btn').style.display = 'block'
   document.getElementById('summary-panel').style.display = 'block'
 
@@ -214,6 +225,99 @@ async function handleMarkerDragEnd(id, lat, lng) {
   await recalcTimesAfter(getActiveTripId())
   flyToPoint(lat, lng)
   await refreshPoints()
+}
+
+// ── 공유 링크 ─────────────────────────────────────────
+async function handleShare() {
+  const tripId = getActiveTripId()
+  if (!tripId) return
+  const btn = document.getElementById('share-btn')
+  btn.textContent = '⏳ 업로드 중...'
+  btn.disabled = true
+
+  try {
+    const json     = await exportTripJson(tripId)
+    await r2ShareUpload(tripId, json)
+    const shareUrl = `${location.origin}${location.pathname}?share=${tripId}`
+    await navigator.clipboard.writeText(shareUrl)
+    btn.textContent = '✅ 복사됨!'
+    btn.classList.add('copied')
+    setTimeout(() => {
+      btn.textContent = '🔗 링크 복사'
+      btn.classList.remove('copied')
+      btn.disabled = false
+    }, 2000)
+  } catch(e) {
+    alert('공유 링크 생성 실패: ' + e.message)
+    btn.textContent = '🔗 링크 복사'
+    btn.disabled = false
+  }
+}
+
+// ── 공유 링크 수신 (읽기전용) ─────────────────────────
+async function handleSharedTrip(tripId) {
+  try {
+    const json   = await r2ShareLoad(tripId)
+    const data   = JSON.parse(json)
+    const trip   = data.trip
+    const points = data.points
+
+    // 지도에 표시 (읽기전용 — 저장 없음)
+    document.getElementById('back-btn').style.display = 'none'
+    document.getElementById('sidebar-subtitle').textContent = trip?.name || '공유된 여행'
+    document.getElementById('add-btn').style.display = 'none'
+    document.getElementById('export-btn').style.display = 'none'
+    document.getElementById('pdf-btn').style.display = 'none'
+    document.getElementById('share-btn').style.display = 'none'
+    document.getElementById('alarm-btn').style.display = 'none'
+    document.getElementById('summary-panel').style.display = 'block'
+    document.getElementById('map-hint').textContent = '👁 읽기 전용 — 공유된 일정입니다'
+
+    // 상단 배너
+    const banner = document.createElement('div')
+    banner.style.cssText = 'background:#0f3460;color:#3ecfb2;font-size:12px;padding:8px 14px;text-align:center;flex-shrink:0;'
+    banner.innerHTML = `📤 공유된 일정: <b>${trip?.name || ''}</b>
+      <button onclick="window.__importShared()" style="margin-left:10px;background:#FF3D5A;border:none;border-radius:4px;color:white;font-size:11px;padding:2px 8px;cursor:pointer">내 앱에 저장</button>`
+    document.getElementById('sidebar').insertBefore(banner, document.getElementById('summary-panel'))
+
+    renderSummary(trip?.name || '', points)
+    await renderPoints(points, () => {}, null, null, true)
+
+    // 사이드바도 간단히 렌더 (편집 불가)
+    const list = document.getElementById('point-list')
+    list.innerHTML = ''
+    const grouped = {}
+    points.forEach(p => { const d = p.day || 1; (grouped[d] = grouped[d] || []).push(p) })
+    Object.keys(grouped).map(Number).sort((a,b)=>a-b).forEach(day => {
+      const div = document.createElement('div')
+      div.style.cssText = 'padding:8px 4px 4px;font-size:11px;font-weight:700;color:#FF3D5A;'
+      div.textContent = `${day}일차`
+      list.appendChild(div)
+      grouped[day].forEach((pt, i) => {
+        const globalIdx = points.findIndex(p => p.id === pt.id)
+        const timeStr = [pt.arrive_time, pt.depart_time].filter(Boolean).join(' ~ ')
+        const item = document.createElement('div')
+        item.style.cssText = 'padding:6px 8px;font-size:13px;border-bottom:1px solid #0f3460;'
+        item.innerHTML = `<b>${globalIdx+1}. ${pt.name}</b>
+          ${timeStr ? `<span style="font-size:11px;color:#3ecfb2;margin-left:6px">${timeStr}</span>` : ''}
+          ${pt.note ? `<div style="font-size:11px;color:#666;margin-top:2px">${pt.note}</div>` : ''}`
+        list.appendChild(item)
+      })
+    })
+
+    // 내 앱에 저장 핸들러
+    window.__importShared = async () => {
+      if (!confirm(`"${trip?.name}" 여행을 내 앱에 저장할까요?`)) return
+      const newTrip = await importTripJson(json)
+      alert(`"${newTrip.name}" 저장 완료!`)
+      history.replaceState({}, '', location.pathname)
+      location.reload()
+    }
+
+  } catch(e) {
+    document.getElementById('map-hint').textContent = '공유 링크를 불러올 수 없어요'
+    alert('공유 데이터 로드 실패: ' + e.message)
+  }
 }
 
 // ── 알림 기능 ─────────────────────────────────────────

@@ -56,9 +56,11 @@
     #add-btn { padding:8px; background:#FF3D5A; border:none; border-radius:8px; color:white; font-size:13px; font-weight:600; cursor:pointer; letter-spacing:1px; transition:all .2s; }
     #add-btn:hover { background:#e03050; transform:translateY(-1px); }
     #bottom-actions { display:flex; gap:6px; }
-    #export-btn, #pdf-btn, #alarm-btn { display:none; flex:1; padding:6px; background:#0f3460; border:1px solid #1e3a6a; border-radius:6px; color:#aaa; font-size:11px; cursor:pointer; }
+    #export-btn, #pdf-btn, #share-btn, #alarm-btn { display:none; flex:1; padding:6px; background:#0f3460; border:1px solid #1e3a6a; border-radius:6px; color:#aaa; font-size:11px; cursor:pointer; }
     #export-btn:hover { border-color:#FF3D5A; color:#FF3D5A; }
     #pdf-btn:hover { border-color:#3ecfb2; color:#3ecfb2; }
+    #share-btn:hover { border-color:#2ECC71; color:#2ECC71; }
+    #share-btn.copied { border-color:#2ECC71; color:#2ECC71; }
     #alarm-btn:hover { border-color:#F39C12; color:#F39C12; }
     #alarm-btn.active { border-color:#F39C12; color:#F39C12; background:#1a1a2e; }
     #pdf-btn.loading { opacity:0.5; cursor:wait; }
@@ -152,9 +154,10 @@
   <div id="bottom-bar">
     <button id="add-btn">+ 여행 추가</button>
     <div id="bottom-actions">
-      <button id="export-btn">⬇ JSON 내보내기</button>
-      <button id="pdf-btn">📄 PDF 다운로드</button>
-      <button id="alarm-btn" style="display:none">🔔 알림 설정</button>
+      <button id="export-btn">⬇ JSON</button>
+      <button id="pdf-btn">📄 PDF</button>
+      <button id="share-btn" style="display:none">🔗 링크 복사</button>
+      <button id="alarm-btn" style="display:none">🔔 알림</button>
       <label id="import-label" for="import-file">⬆ 가져오기</label>
       <input type="file" id="import-file" accept=".json" />
     </div>
