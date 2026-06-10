@@ -54,7 +54,7 @@ function spreadOffset(points, index) {
   }
 }
 
-export async function renderPoints(points, onMarkerClick, filterDay = null, onMarkerDragEnd = null, isInitial = false) {
+export async function renderPoints(points, onMarkerClick, filterDay = null, onMarkerDragEnd = null, isInitial = false, isReadOnly = false) {
   clearMap()
   if (!points.length) return
 
@@ -82,10 +82,10 @@ export async function renderPoints(points, onMarkerClick, filterDay = null, onMa
         ${point.note ? `<div style="font-size:12px;color:#555;border-top:1px solid #eee;padding-top:6px;margin-bottom:4px;white-space:pre-wrap">${point.note}</div>` : ''}
         ${linksHtml}
         <div style="margin-top:8px;padding-top:6px;border-top:1px solid #eee;display:flex;gap:6px">
-          <button onclick="window.__editPoint('${point.id}')"
+          ${!isReadOnly ? `<button onclick="window.__editPoint('${point.id}')"
             style="flex:1;background:#FF3D5A;color:white;border:none;border-radius:6px;padding:5px;font-size:12px;cursor:pointer">
             수정
-          </button>
+          </button>` : ''}
           ${canGmaps ? `<button onclick="window.__openGmaps('${point.id}')"
             style="flex:1;background:#0f3460;color:white;border:none;border-radius:6px;padding:5px;font-size:12px;cursor:pointer">
             구글지도
@@ -93,7 +93,7 @@ export async function renderPoints(points, onMarkerClick, filterDay = null, onMa
         </div>
       </div>`
 
-    const marker = L.marker([pos.lat, pos.lng], { icon, draggable: true }).addTo(map)
+    const marker = L.marker([pos.lat, pos.lng], { icon, draggable: !isReadOnly }).addTo(map)
     marker.bindPopup(popup)
     marker.on('click',     () => { if (onMarkerClick) onMarkerClick(point.id) })
     marker.on('dragstart', () => { map.dragging.disable(); marker.closePopup() })

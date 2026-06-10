@@ -264,18 +264,20 @@ async function handleSharedTrip(tripId) {
     const trip   = data.trip
     const points = data.points
 
-    // 지도에 표시 (읽기전용 — 저장 없음)
-    document.getElementById('back-btn').style.display = 'none'
+    // ── UI 세팅 (읽기전용) ──────────────────────────
+    document.getElementById('back-btn').style.display    = 'none'
+    document.getElementById('add-btn').style.display     = 'none'
+    document.getElementById('export-btn').style.display  = 'none'
+    document.getElementById('share-btn').style.display   = 'none'
     document.getElementById('sidebar-subtitle').textContent = trip?.name || '공유된 여행'
-    document.getElementById('add-btn').style.display = 'none'
-    document.getElementById('export-btn').style.display = 'none'
-    document.getElementById('pdf-btn').style.display = 'none'
-    document.getElementById('share-btn').style.display = 'none'
-    document.getElementById('alarm-btn').style.display = 'none'
+    document.getElementById('map-hint').textContent      = '👁 읽기 전용 — 공유된 일정입니다'
     document.getElementById('summary-panel').style.display = 'block'
-    document.getElementById('map-hint').textContent = '👁 읽기 전용 — 공유된 일정입니다'
+    document.getElementById('pdf-btn').style.display   = 'block'
+    document.getElementById('alarm-btn').style.display = 'block'
+    document.getElementById('pdf-btn').onclick = () => handleSharedPdf(trip, points)
+    document.getElementById('alarm-btn').onclick = () => handleSharedAlarm(points)
 
-    // 상단 배너
+    // ── 상단 배너 ───────────────────────────────────
     const banner = document.createElement('div')
     banner.style.cssText = 'background:#0f3460;color:#3ecfb2;font-size:12px;padding:8px 14px;text-align:center;flex-shrink:0;'
     banner.innerHTML = `📤 공유된 일정: <b>${trip?.name || ''}</b>
@@ -283,31 +285,17 @@ async function handleSharedTrip(tripId) {
     document.getElementById('sidebar').insertBefore(banner, document.getElementById('summary-panel'))
 
     renderSummary(trip?.name || '', points)
-    await renderPoints(points, () => {}, null, null, true)
+    await renderPoints(points, () => {}, null, null, true, true)
 
-    // 사이드바도 간단히 렌더 (편집 불가)
-    const list = document.getElementById('point-list')
-    list.innerHTML = ''
-    const grouped = {}
-    points.forEach(p => { const d = p.day || 1; (grouped[d] = grouped[d] || []).push(p) })
-    Object.keys(grouped).map(Number).sort((a,b)=>a-b).forEach(day => {
-      const div = document.createElement('div')
-      div.style.cssText = 'padding:8px 4px 4px;font-size:11px;font-weight:700;color:#FF3D5A;'
-      div.textContent = `${day}일차`
-      list.appendChild(div)
-      grouped[day].forEach((pt, i) => {
-        const globalIdx = points.findIndex(p => p.id === pt.id)
-        const timeStr = [pt.arrive_time, pt.depart_time].filter(Boolean).join(' ~ ')
-        const item = document.createElement('div')
-        item.style.cssText = 'padding:6px 8px;font-size:13px;border-bottom:1px solid #0f3460;'
-        item.innerHTML = `<b>${globalIdx+1}. ${pt.name}</b>
-          ${timeStr ? `<span style="font-size:11px;color:#3ecfb2;margin-left:6px">${timeStr}</span>` : ''}
-          ${pt.note ? `<div style="font-size:11px;color:#666;margin-top:2px">${pt.note}</div>` : ''}`
-        list.appendChild(item)
-      })
-    })
+    let sharedDayFilter = null
+    renderSharedSidebar(points, sharedDayFilter)
 
-    // 내 앱에 저장 핸들러
+    window.__sharedDayFilter = (day) => {
+      sharedDayFilter = day
+      renderSharedSidebar(points, day)
+      renderPoints(points, () => {}, day, null, false, true)
+    }
+
     window.__importShared = async () => {
       if (!confirm(`"${trip?.name}" 여행을 내 앱에 저장할까요?`)) return
       const newTrip = await importTripJson(json)
@@ -320,6 +308,178 @@ async function handleSharedTrip(tripId) {
     document.getElementById('map-hint').textContent = '공유 링크를 불러올 수 없어요'
     alert('공유 데이터 로드 실패: ' + e.message)
   }
+}
+
+// ── 공유 뷰 사이드바 렌더 ────────────────────────────
+function renderSharedSidebar(points, activeDayFilter = null) {
+  const list = document.getElementById('point-list')
+  list.innerHTML = ''
+
+  const days = [...new Set(points.map(p => p.day || 1))].sort((a, b) => a - b)
+
+  if (days.length > 1) {
+    const bar = document.createElement('div')
+    bar.className = 'day-filter-bar'
+    const allBtn = document.createElement('button')
+    allBtn.className = activeDayFilter === null ? 'day-filter-btn active' : 'day-filter-btn'
+    allBtn.textContent = '전체'
+    allBtn.dataset.day = 'all'
+    bar.appendChild(allBtn)
+    days.forEach(d => {
+      const btn = document.createElement('button')
+      btn.className = activeDayFilter === d ? 'day-filter-btn active' : 'day-filter-btn'
+      btn.textContent = `${d}일차`
+      btn.dataset.day = d
+      bar.appendChild(btn)
+    })
+    bar.addEventListener('click', (e) => {
+      const btn = e.target.closest('.day-filter-btn')
+      if (!btn) return
+      const day = btn.dataset.day === 'all' ? null : Number(btn.dataset.day)
+      window.__sharedDayFilter(day)
+    })
+    list.appendChild(bar)
+  }
+
+  const grouped = {}
+  points.forEach(p => { const d = p.day || 1; (grouped[d] = grouped[d] || []).push(p) })
+  const TC = { departure:'#95A5A6', airport:'#2980B9', hotel:'#E74C3C', food:'#E67E22', attraction:'#2ECC71', shopping:'#F39C12', transport:'#8E44AD', other:'#607D8B' }
+  const TL = { departure:'🏠 출발지', airport:'✈️ 공항', hotel:'🏨 숙소', food:'🍽️ 식당', attraction:'🗺️ 관광지', shopping:'🛍️ 쇼핑', transport:'🚌 교통', other:'📍 기타' }
+  const TRL = { walk:'🚶 도보', car:'🚗 자동차', uber:'🚕 우버/택시', transit:'🚌 버스/전철', flight:'✈️ 비행기' }
+  const TRC = { walk:'#2ECC71', car:'#2980B9', uber:'#2980B9', transit:'#8E44AD', flight:'#95A5A6' }
+  function fmtD(m) { if(!m)return''; const h=Math.floor(m/60),r=m%60; return h&&r?`${h}시간 ${r}분`:h?`${h}시간`:`${r}분` }
+
+  Object.keys(grouped).map(Number).sort((a,b)=>a-b).forEach(day => {
+    if (activeDayFilter !== null && day !== activeDayFilter) return
+    const dayPts = grouped[day]
+    const div = document.createElement('div')
+    div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 4px 6px;font-size:11px;font-weight:700;color:#FF3D5A;letter-spacing:1px;'
+    div.innerHTML = `<span>${day}일차</span><div style="flex:1;height:1px;background:#1e1e3a;"></div>`
+    list.appendChild(div)
+
+    dayPts.forEach((point) => {
+      const globalIdx = points.findIndex(p => p.id === point.id)
+      const isLast    = globalIdx === points.length - 1
+      const color     = TC[point.type] || '#607D8B'
+      const timeStr   = [point.arrive_time, point.depart_time].filter(Boolean).join(' ~ ')
+      const linksHtml = (point.external_links || []).map(l =>
+        `<a href="${l.url}" target="_blank" style="color:#FF3D5A;font-size:11px;display:block">🔗 ${l.label || l.url}</a>`).join('')
+
+      const item = document.createElement('div')
+      item.className = 'point-item'
+      item.dataset.id = point.id
+      item.innerHTML = `
+        <div class="point-header">
+          <div class="point-dot" style="background:${color}"></div>
+          <div class="point-name">${globalIdx + 1}. ${point.name}</div>
+        </div>
+        <div class="point-meta">
+          ${timeStr ? `<span class="point-time">⏰ ${timeStr}</span>` : ''}
+          ${point.tag ? `<span style="color:#888">${point.tag}</span>` : ''}
+          <span style="color:#555">${TL[point.type] || ''}</span>
+        </div>
+        ${point.note ? `<div style="font-size:11px;color:#666;margin-top:3px;padding:0 2px">${point.note}</div>` : ''}
+        ${linksHtml ? `<div style="margin-top:3px">${linksHtml}</div>` : ''}`
+      list.appendChild(item)
+
+      if (!isLast) {
+        const next = points[globalIdx + 1]
+        const isDayBreak = (next?.day || 1) !== day
+        const seg = document.createElement('div')
+        seg.className = 'segment-item'
+        if (isDayBreak) {
+          seg.innerHTML = `<div class="segment-line" style="background:#1e1e3a;height:30px;"></div>
+            <div class="segment-info" style="color:#333;font-size:11px;">─ 다음 일차로 ─</div>`
+        } else if (point.transport_to_next) {
+          const segColor = TRC[point.transport_to_next] || '#555'
+          const dur = point.duration_minutes ? ` · ${fmtD(point.duration_minutes)}` : ''
+          const cost = point.cost ? ` · $${point.cost}` : ''
+          seg.innerHTML = `<div class="segment-line" style="background:${segColor}"></div>
+            <div class="segment-info" style="cursor:pointer;display:flex;align-items:center;gap:4px;">
+              <span>${TRL[point.transport_to_next] || ''}</span>
+              <span style="color:#555">${dur}${cost}</span>
+              <span style="color:#3ecfb2;font-size:10px;margin-left:4px;">🗺</span>
+            </div>`
+          seg.title = '클릭 → 구글지도'
+          seg.style.cursor = 'pointer'
+          seg.addEventListener('click', () => window.open(googleMapsUrl(point, next, point.transport_to_next), '_blank'))
+        } else {
+          seg.innerHTML = `<div class="segment-line" style="background:#2a2a4a"></div>
+            <div class="segment-info" style="color:#444;font-size:11px;">이동수단 미입력</div>`
+        }
+        list.appendChild(seg)
+      }
+    })
+  })
+}
+
+// ── 공유 뷰 PDF ──────────────────────────────────────
+async function handleSharedPdf(trip, points) {
+  const btn = document.getElementById('pdf-btn')
+  btn.textContent = '⏳ 생성 중...'; btn.disabled = true
+  try {
+    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
+    const fontB64 = await loadNanumGothic()
+    doc.addFileToVFS('NanumGothic.ttf', fontB64)
+    doc.addFont('NanumGothic.ttf', 'NanumGothic', 'normal')
+    doc.setFont('NanumGothic')
+    const PAGE_W=210,PAGE_H=297,ML=10,MR=10,MT=16,COL_W=PAGE_W-ML-MR
+    let y=MT
+    const TK={walk:'도보',car:'자동차',uber:'우버/택시',transit:'버스/전철',flight:'비행기'}
+    const TYK={departure:'출발지',airport:'공항',hotel:'숙소',food:'식당',attraction:'관광지',shopping:'쇼핑',transport:'교통',other:'기타'}
+    function fd(m){if(!m)return'';const h=Math.floor(m/60),r=m%60;return h&&r?`${h}시간 ${r}분`:h?`${h}시간`:`${r}분`}
+    function cp(n=10){if(y+n>PAGE_H-14){doc.addPage();doc.setFont('NanumGothic');y=MT}}
+    const C={num:{x:ML,w:6},name:{x:ML+6,w:52},type:{x:ML+58,w:16},arr:{x:ML+74,w:14},dep:{x:ML+88,w:14},trans:{x:ML+102,w:20},dur:{x:ML+122,w:16},cost:{x:ML+138,w:12},note:{x:ML+150,w:COL_W-150}}
+    const ROW_H=7
+    function th(){doc.setFillColor(15,52,96);doc.rect(ML,y,COL_W,ROW_H,'F');doc.setTextColor(200,220,240);doc.setFontSize(7);[['#',C.num],['장소',C.name],['유형',C.type],['도착',C.arr],['출발',C.dep],['이동수단',C.trans],['소요',C.dur],['비용',C.cost],['메모',C.note]].forEach(([l,c])=>doc.text(l,c.x+1,y+5));y+=ROW_H}
+    function tr(num,pt,even){if(even){doc.setFillColor(245,247,252);doc.rect(ML,y,COL_W,ROW_H,'F')}
+      doc.setTextColor(60,60,80);doc.setFontSize(8)
+      function ct(t,c){const s=doc.splitTextToSize(String(t),c.w-2)[0]||'';doc.text(s,c.x+1,y+5)}
+      doc.setTextColor(100,100,120);ct(num,C.num);doc.setTextColor(26,26,46);doc.setFontSize(8);ct(pt.name,C.name);doc.setFontSize(7);doc.setTextColor(120,120,140);ct(TYK[pt.type]||pt.type||'',C.type);doc.setTextColor(41,128,185);ct(pt.arrive_time||'',C.arr);ct(pt.depart_time||'',C.dep);doc.setTextColor(142,68,173);ct(TK[pt.transport_to_next]||'',C.trans);doc.setTextColor(80,80,100);ct(fd(pt.duration_minutes),C.dur);doc.setTextColor(231,76,60);ct(pt.cost?`$${pt.cost}`:'',C.cost);doc.setTextColor(85,85,85);doc.setFontSize(7);ct([pt.tag,pt.note].filter(Boolean).join(' | '),C.note);doc.setDrawColor(220,225,235);doc.line(ML,y+ROW_H,ML+COL_W,y+ROW_H);y+=ROW_H}
+    doc.setFillColor(10,40,80);doc.rect(0,0,PAGE_W,20,'F');doc.setTextColor(255,255,255);doc.setFontSize(14);doc.text(trip.name||'여행 일정',ML,13);doc.setFontSize(8);doc.setTextColor(160,190,220);doc.text('Generated by JaeWalk',PAGE_W-MR,13,{align:'right'});y=26
+    const grp={};points.forEach(p=>{const d=p.day||1;(grp[d]=grp[d]||[]).push(p)})
+    for(const day of Object.keys(grp).map(Number).sort((a,b)=>a-b)){
+      cp(ROW_H*3);doc.setFillColor(30,30,60);doc.rect(ML,y,COL_W,6,'F');doc.setTextColor(255,200,100);doc.setFontSize(9);doc.text(`Day ${day}`,ML+2,y+4.5);y+=8;th()
+      grp[day].forEach((pt,idx)=>{cp(ROW_H+2);tr(points.findIndex(p=>p.id===pt.id)+1,pt,idx%2===1)});y+=4}
+    const pc=doc.getNumberOfPages();for(let i=1;i<=pc;i++){doc.setPage(i);doc.setFontSize(7);doc.setTextColor(180,180,180);doc.text(`${i} / ${pc}`,PAGE_W-MR,PAGE_H-6,{align:'right'})}
+    doc.save(`${(trip.name||'trip').replace(/\s+/g,'_')}_${new Date().toISOString().slice(0,10)}.pdf`)
+  } catch(e){alert('PDF 생성 실패: '+e.message)}
+  finally{btn.textContent='📄 PDF 다운로드';btn.disabled=false}
+}
+
+// ── 공유 뷰 알림 ─────────────────────────────────────
+let _sharedAlarmTimers = []
+let _sharedAlarmActive = false
+async function handleSharedAlarm(points) {
+  const btn = document.getElementById('alarm-btn')
+  if (_sharedAlarmActive) {
+    _sharedAlarmTimers.forEach(t => clearTimeout(t)); _sharedAlarmTimers = []; _sharedAlarmActive = false
+    btn.classList.remove('active'); btn.textContent = '🔔 알림 설정'; return
+  }
+  if (!('Notification' in window)) { alert('이 브라우저는 알림을 지원하지 않아요.'); return }
+  let perm = Notification.permission
+  if (perm === 'denied') { alert('알림이 차단되어 있어요. 브라우저 설정에서 허용해주세요.'); return }
+  if (perm !== 'granted') perm = await Notification.requestPermission()
+  if (perm !== 'granted') return
+  const ADVANCE_MIN = 5, now = new Date()
+  let scheduled = 0
+  points.forEach((pt, idx) => {
+    if (!pt.depart_time) return
+    const [h, m] = pt.depart_time.split(':').map(Number)
+    const target = new Date(now); target.setHours(h, m - ADVANCE_MIN, 0, 0)
+    const delay = target - now
+    if (delay <= 0) return
+    const timer = setTimeout(() => {
+      const nextPt = points[idx + 1]
+      new Notification(`🗺 JaeWalk — 출발 ${ADVANCE_MIN}분 전`, {
+        body: nextPt ? `${pt.name} → ${nextPt.name}` : `${pt.name} 출발 준비`,
+        icon: '/icons/icon-192.png', silent: false
+      })
+    }, delay)
+    _sharedAlarmTimers.push(timer); scheduled++
+  })
+  if (scheduled === 0) { alert('오늘 스케줄에서 알림을 등록할 출발 시간이 없어요.'); return }
+  _sharedAlarmActive = true; btn.classList.add('active'); btn.textContent = `🔔 알림 ON (${scheduled}개)`
 }
 
 // ── 알림 기능 ─────────────────────────────────────────
