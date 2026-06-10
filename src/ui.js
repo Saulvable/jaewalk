@@ -49,7 +49,7 @@ export function renderTripList(trips, callbacks) {
 }
 
 // ── 포인트 리스트 (일차 분리) ──────────────────────
-export function renderSidebar(points, callbacks) {
+export function renderSidebar(points, callbacks, activeDayFilter = null) {
   const list = document.getElementById('point-list')
   list.innerHTML = ''
 
@@ -59,13 +59,13 @@ export function renderSidebar(points, callbacks) {
     const bar = document.createElement('div')
     bar.className = 'day-filter-bar'
     const allBtn = document.createElement('button')
-    allBtn.className = 'day-filter-btn active'
+    allBtn.className = activeDayFilter === null ? 'day-filter-btn active' : 'day-filter-btn'
     allBtn.textContent = '전체'
     allBtn.dataset.day = 'all'
     bar.appendChild(allBtn)
     days.forEach(d => {
       const btn = document.createElement('button')
-      btn.className = 'day-filter-btn'
+      btn.className = activeDayFilter === d ? 'day-filter-btn active' : 'day-filter-btn'
       btn.textContent = `${d}일차`
       btn.dataset.day = d
       bar.appendChild(btn)
@@ -92,6 +92,7 @@ export function renderSidebar(points, callbacks) {
   points.forEach(p => { const d = p.day || 1; (grouped[d] = grouped[d] || []).push(p) })
 
   Object.keys(grouped).map(Number).sort((a, b) => a - b).forEach(day => {
+    if (activeDayFilter !== null && day !== activeDayFilter) return
     const dayPts = grouped[day]
 
     // 일차 구분선

@@ -183,7 +183,7 @@ async function refreshPoints(isInitial = false) {
   const trip   = trips.find(t => t.id === tripId)
   const points = await loadPoints(tripId)
 
-  renderSidebar(points, {
+  const sidebarCallbacks = {
     onEdit:      openPointModal,
     onMoveUp:    async (id) => { const v = getMapView(); await movePointUp(Number(id));   await recalcTimesAfter(getActiveTripId()); await refreshPoints(); setMapView(v) },
     onMoveDown:  async (id) => { const v = getMapView(); await movePointDown(Number(id)); await recalcTimesAfter(getActiveTripId()); await refreshPoints(); setMapView(v) },
@@ -198,6 +198,7 @@ async function refreshPoints(isInitial = false) {
     },
     onDayFilter: (day) => {
       currentDayFilter = day
+      renderSidebar(points, sidebarCallbacks, day)
       renderPoints(points, highlightSidebarItem, day, handleMarkerDragEnd, false)
     },
     onSegmentGmaps: async (fromId) => {
@@ -208,7 +209,8 @@ async function refreshPoints(isInitial = false) {
       const url = googleMapsUrl(pts[idx], pts[idx + 1], pts[idx].transport_to_next)
       window.open(url, '_blank')
     }
-  })
+  }
+  renderSidebar(points, sidebarCallbacks, currentDayFilter)
 
   renderSummary(trip?.name || '', points)
   await renderPoints(points, highlightSidebarItem, currentDayFilter, handleMarkerDragEnd, isInitial)

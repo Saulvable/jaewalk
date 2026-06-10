@@ -393,10 +393,10 @@ export async function r2ShareUpload(tripId, jsonStr) {
   return `${R2_ENDPOINT}/${R2_BUCKET}/${key}`
 }
 
-// 공유 URL에서 JSON 로드
+// 공유 URL에서 JSON 로드 (서명된 GET — 퍼블릭 액세스 불필요)
 export async function r2ShareLoad(tripId) {
-  const url = `${R2_ENDPOINT}/${R2_BUCKET}/shares/${tripId}.json`
-  const res = await fetch(url)
+  const key = `shares/${tripId}.json`
+  const res = await signedR2Request('GET', key)
   if (!res.ok) throw new Error(`공유 데이터 로드 실패: ${res.status}`)
   return res.text()
 }

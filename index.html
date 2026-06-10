@@ -74,12 +74,12 @@
     #sidebar-resizer::after { content:''; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:2px; height:40px; background:#FF3D5A44; border-radius:2px; }
 
     /* 모바일 반응형 */
-    @media (max-width: 600px) {
+    @media (max-width: 768px) {
       body { flex-direction: column; }
-      #sidebar { width: 100% !important; height: 45vh; min-width: unset; border-right: none; border-bottom: none; }
+      #sidebar { width: 100% !important; height: 45vh; min-width: unset; border-right: none; border-bottom: none; order: -1; }
       #sidebar-resizer { width: 100% !important; height: 10px !important; cursor: row-resize !important; border-top: 1px solid #0f3460; border-right: none; }
       #sidebar-resizer::after { width: 40px !important; height: 2px !important; top: 50% !important; left: 50% !important; }
-      #map-container { flex: 1; min-height: 30vh; }
+      #map-container { flex: 1; min-height: 0; }
       .modal-box { width: 95vw; padding: 16px; }
       #bottom-bar { padding: 8px; }
       #bottom-actions { flex-wrap: wrap; }
