@@ -8,7 +8,7 @@ import {
   movePointUp, movePointDown,
   migrateOldData,
   exportTripJson, importTripJson,
-  r2Upload, r2ListFiles, r2Delete,
+  r2Upload, r2ListFiles, r2Delete, r2OpenFile,
   r2ShareUpload, r2ShareLoad,
   fetchOsrmRoute,
   googleMapsUrl
@@ -367,8 +367,14 @@ function renderSharedSidebar(points, activeDayFilter = null) {
       const isLast    = globalIdx === points.length - 1
       const color     = TC[point.type] || '#607D8B'
       const timeStr   = [point.arrive_time, point.depart_time].filter(Boolean).join(' ~ ')
-      const linksHtml = (point.external_links || []).map(l =>
-        `<a href="${l.url}" target="_blank" style="color:#FF3D5A;font-size:11px;display:block">🔗 ${l.label || l.url}</a>`).join('')
+      const linksHtml = (point.external_links || []).map(l => {
+        const isR2 = l.url && l.url.includes('r2.cloudflarestorage.com')
+        if (isR2) {
+          const key = l.url.split('/jaewalk-files/')[1]
+          return `<a href="#" data-r2key="${encodeURIComponent(key)}" style="color:#FF3D5A;font-size:11px;display:block">🔗 ${l.label || l.url}</a>`
+        }
+        return `<a href="${l.url}" target="_blank" style="color:#FF3D5A;font-size:11px;display:block">🔗 ${l.label || l.url}</a>`
+      }).join('')
 
       const item = document.createElement('div')
       item.className = 'point-item'
@@ -386,6 +392,19 @@ function renderSharedSidebar(points, activeDayFilter = null) {
         ${point.note ? `<div style="font-size:11px;color:#666;margin-top:3px;padding:0 2px">${point.note}</div>` : ''}
         ${linksHtml ? `<div style="margin-top:3px">${linksHtml}</div>` : ''}`
       list.appendChild(item)
+
+      item.querySelectorAll('a[data-r2key]').forEach(a => {
+        a.addEventListener('click', async (e) => {
+          e.preventDefault()
+          try {
+            const key = decodeURIComponent(a.dataset.r2key)
+            const blobUrl = await r2OpenFile(key)
+            window.open(blobUrl, '_blank')
+          } catch {
+            alert('파일을 열 수 없습니다.')
+          }
+        })
+      })
 
       if (!isLast) {
         const next = points[globalIdx + 1]

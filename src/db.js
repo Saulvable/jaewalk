@@ -330,6 +330,13 @@ export async function r2Upload(tripId, filename, file) {
   return `${R2_ENDPOINT}/${R2_BUCKET}/${key}`
 }
 
+export async function r2OpenFile(key) {
+  const res = await signedR2Request('GET', key)
+  if (!res.ok) throw new Error(`R2 읽기 실패: ${res.status}`)
+  const blob = await res.blob()
+  return URL.createObjectURL(blob)
+}
+
 export async function r2Delete(tripId, filename) {
   const key = `trips/${tripId}/${filename}`
   const res = await signedR2Request('DELETE', key)
