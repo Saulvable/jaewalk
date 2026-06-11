@@ -454,7 +454,7 @@ async function handleSharedPdf(trip, points) {
     const TYK={departure:'출발지',airport:'공항',hotel:'숙소',food:'식당',attraction:'관광지',shopping:'쇼핑',transport:'교통',other:'기타'}
     function fd(m){if(!m)return'';const h=Math.floor(m/60),r=m%60;return h&&r?`${h}시간 ${r}분`:h?`${h}시간`:`${r}분`}
     function cp(n=10){if(y+n>PAGE_H-14){doc.addPage();doc.setFont('NanumGothic');y=MT}}
-    const C={num:{x:ML,w:6},name:{x:ML+6,w:52},type:{x:ML+58,w:16},arr:{x:ML+74,w:14},dep:{x:ML+88,w:14},trans:{x:ML+102,w:20},dur:{x:ML+122,w:16},cost:{x:ML+138,w:12},note:{x:ML+150,w:COL_W-150}}
+    const C={num:{x:ML,w:5},name:{x:ML+5,w:50},type:{x:ML+55,w:12},arr:{x:ML+67,w:11},dep:{x:ML+78,w:11},trans:{x:ML+89,w:14},dur:{x:ML+103,w:14},cost:{x:ML+117,w:13},note:{x:ML+130,w:COL_W-130}}
     const ROW_H=7
     function th(){doc.setFillColor(15,52,96);doc.rect(ML,y,COL_W,ROW_H,'F');doc.setTextColor(200,220,240);doc.setFontSize(7);[['#',C.num],['장소',C.name],['유형',C.type],['도착',C.arr],['출발',C.dep],['이동수단',C.trans],['소요',C.dur],['비용',C.cost],['메모',C.note]].forEach(([l,c])=>doc.text(l,c.x+1,y+5));y+=ROW_H}
     function tr(num,pt,even){if(even){doc.setFillColor(245,247,252);doc.rect(ML,y,COL_W,ROW_H,'F')}
