@@ -10,6 +10,7 @@ import {
   exportTripJson, importTripJson,
   r2Upload, r2ListFiles, r2Delete,
   r2ShareUpload, r2ShareLoad,
+  fetchOsrmRoute,
   googleMapsUrl
 } from './db.js'
 import { jsPDF } from 'jspdf'
@@ -35,6 +36,7 @@ async function loadNanumGothic() {
 let editingId      = null
 let editingTripId  = null
 let pendingLatLng  = null
+let prevPointForDuration = null   // 신규 추가 시 직전 포인트 (OSRM 자동계산용)
 let searchTimer    = null
 let previewMarker  = null
 let mapInstance    = null
@@ -88,6 +90,9 @@ async function init() {
   // 시간 드롭다운 미리보기
   document.getElementById('f-arrive').addEventListener('change', updateDepartPreview)
   document.getElementById('f-stay').addEventListener('change', updateDepartPreview)
+
+  // 이동수단 변경 → OSRM 자동 소요시간 계산 (도보/자동차/우버)
+  document.getElementById('f-transport').addEventListener('change', autoCalcDuration)
 
   // 전역 핸들러
   window.__editPoint  = (id) => openPointModal(id)
@@ -889,8 +894,16 @@ function setPendingLocation(lat, lng) {
   previewMarker.bindTooltip('드래그해서 위치 조정', { permanent: false })
   previewMarker.on('dragstart', () => mapInstance.dragging.disable())
   previewMarker.on('drag',    e => { const p = e.target.getLatLng(); pendingLatLng = { lat: p.lat, lng: p.lng } })
-  previewMarker.on('dragend', e => { mapInstance.dragging.enable(); const p = e.target.getLatLng(); pendingLatLng = { lat: p.lat, lng: p.lng } })
+  previewMarker.on('dragend', e => {
+    mapInstance.dragging.enable()
+    const p = e.target.getLatLng(); pendingLatLng = { lat: p.lat, lng: p.lng }
+    // 위치 드래그 후 이동수단 이미 선택돼 있으면 자동 재계산
+    if (document.getElementById('f-transport').value) autoCalcDuration()
+  })
   document.getElementById('location-confirm').style.display = 'block'
+
+  // 위치 확정 시 이동수단 이미 선택돼 있으면 자동계산
+  if (document.getElementById('f-transport').value) autoCalcDuration()
 }
 
 function clearPreviewMarker() {
@@ -997,6 +1010,66 @@ function populateTimeDropdowns() {
   }
 }
 
+// 이동수단 변경 시 OSRM으로 소요시간 자동계산 (도보/자동차/우버)
+async function autoCalcDuration() {
+  const transport = document.getElementById('f-transport').value
+  const status    = document.getElementById('duration-auto-status')
+
+  // 대중교통/비행기/미선택은 자동계산 안 함
+  if (!transport || transport === 'transit' || transport === 'flight') {
+    if (status) status.textContent = ''
+    return
+  }
+
+  // 현재 편집 중인 포인트(출발지)와 다음 포인트(목적지) 좌표 필요
+  if (!pendingLatLng) { if (status) status.textContent = '위치를 먼저 지정해주세요'; return }
+
+  const tripId = getActiveTripId()
+  const points = await loadPoints(tripId)
+
+  // 다음 포인트 찾기: 편집 중이면 현재 포인트의 다음, 신규면 마지막 포인트가 출발지
+  let fromPt, toPt
+  if (editingId) {
+    const idx = points.findIndex(p => p.id === Number(editingId))
+    if (idx < 0 || idx >= points.length - 1) {
+      if (status) status.textContent = '마지막 장소는 다음 경로 없음'
+      return
+    }
+    fromPt = { lat: pendingLatLng.lat, lng: pendingLatLng.lng }
+    toPt   = { lat: points[idx + 1].lat, lng: points[idx + 1].lng }
+  } else {
+    // 신규 추가: 직전 포인트 → 현재 위치
+    if (!prevPointForDuration) {
+      if (status) status.textContent = '첫 장소는 이전 경로 없음'
+      return
+    }
+    fromPt = { lat: prevPointForDuration.lat, lng: prevPointForDuration.lng }
+    toPt   = { lat: pendingLatLng.lat, lng: pendingLatLng.lng }
+  }
+
+  if (status) status.textContent = '⏳ 계산 중...'
+
+  const osrmTransport = (transport === 'walk') ? 'walk' : 'car'
+  const route = await fetchOsrmRoute(fromPt, toPt, osrmTransport)
+
+  if (!route) {
+    if (status) status.textContent = '경로 없음 (수동 입력)'
+    return
+  }
+
+  // 초 → 가장 가까운 선택 가능한 분 단위로 반올림
+  const rawMin  = Math.ceil(route.duration / 60)
+  const options = [5,10,15,20,25,30,45,60,75,90,105,120,150,180,210,240,300,360]
+  const nearest = options.reduce((prev, cur) =>
+    Math.abs(cur - rawMin) < Math.abs(prev - rawMin) ? cur : prev
+  )
+
+  document.getElementById('f-duration').value = nearest
+  const distKm = (route.distance / 1000).toFixed(1)
+  if (status) status.textContent = `✅ 자동 (${rawMin}분 · ${distKm}km)`
+  updateDepartPreview()
+}
+
 // 체류시간 변경 시 출발 미리보기 업데이트
 function updateDepartPreview() {
   const arrive = document.getElementById('f-arrive').value
@@ -1084,6 +1157,9 @@ async function openPointModal(id) {
   } else {
     title.textContent       = '장소 추가'
     deleteBtn.style.display = 'none'
+    // 신규 추가: 현재 마지막 포인트를 출발지로 저장 (이동수단 선택 시 자동계산에 사용)
+    const allPts = await loadPoints(getActiveTripId())
+    prevPointForDuration = allPts.length > 0 ? allPts[allPts.length - 1] : null
   }
 
   renderLinkList()
@@ -1093,7 +1169,9 @@ async function openPointModal(id) {
 
 window.closeModal = () => {
   document.getElementById('modal-overlay').classList.remove('open')
-  editingId = null; pendingLatLng = null; pendingLinks = []
+  editingId = null; pendingLatLng = null; pendingLinks = []; prevPointForDuration = null
+  const status = document.getElementById('duration-auto-status')
+  if (status) status.textContent = ''
   clearPreviewMarker(); clearForm(); hideSearchResults()
   document.getElementById('search-status').textContent = ''
   document.getElementById('location-confirm').style.display = 'none'
