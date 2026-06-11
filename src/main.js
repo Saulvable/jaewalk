@@ -192,6 +192,7 @@ async function refreshPoints(isInitial = false) {
     onEdit:      openPointModal,
     onMoveUp:    async (id) => { const v = getMapView(); await movePointUp(Number(id));   await recalcTimesAfter(getActiveTripId()); await refreshPoints(); setMapView(v) },
     onMoveDown:  async (id) => { const v = getMapView(); await movePointDown(Number(id)); await recalcTimesAfter(getActiveTripId()); await refreshPoints(); setMapView(v) },
+    onR2Open:    async (key) => r2OpenFile(key),
     onCopy: async (id) => {
       const tripId = getActiveTripId()
       const points = await loadPoints(tripId)
@@ -640,17 +641,17 @@ async function handlePdfDownload() {
     }
 
     // 테이블 컬럼 정의 (x위치, 너비)
-    // #(6) | 장소명(52) | 유형(16) | 도착(14) | 출발(14) | 이동수단(20) | 소요(16) | 비용(12) | 메모(나머지)
+    // #(5) | 장소명(50) | 유형(12) | 도착(11) | 출발(11) | 이동수단(14) | 소요(14) | 비용(13) | 메모(나머지)
     const C = {
-      num:   { x: ML,       w: 6  },
-      name:  { x: ML+6,     w: 52 },
-      type:  { x: ML+58,    w: 16 },
-      arr:   { x: ML+74,    w: 14 },
-      dep:   { x: ML+88,    w: 14 },
-      trans: { x: ML+102,   w: 20 },
-      dur:   { x: ML+122,   w: 16 },
-      cost:  { x: ML+138,   w: 12 },
-      note:  { x: ML+150,   w: COL_W-150 },
+      num:   { x: ML,       w: 5  },
+      name:  { x: ML+5,     w: 50 },
+      type:  { x: ML+55,    w: 12 },
+      arr:   { x: ML+67,    w: 11 },
+      dep:   { x: ML+78,    w: 11 },
+      trans: { x: ML+89,    w: 14 },
+      dur:   { x: ML+103,   w: 14 },
+      cost:  { x: ML+117,   w: 13 },
+      note:  { x: ML+130,   w: COL_W-130 },
     }
     const ROW_H = 7
 
