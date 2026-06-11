@@ -116,10 +116,7 @@ D:\Util\jaewalk\
     icons/
       icon-192.png        ← PWA 홈 화면 아이콘 192×192. 설치 시 필수.
       icon-512.png        ← PWA 홈 화면 아이콘 512×512. 스플래시 화면 등.
-    public/               ← 빈 폴더. 삭제 가능 (Git에 빈 폴더는 추적 안 됨).
-  ※ favicon.ico와 icons/는 같은 위치에 두지 않아도 됨. Vite가 public/ 루트를 그대로 빌드 결과에 복사하므로
-    현재 구조(favicon.ico는 public/ 루트, 아이콘은 public/icons/)가 표준이며 이대로 유지.
-
+ 
   node_modules/           ← npm 설치 패키지. Git/배포에 포함 안 함. 삭제해도 됨 (npm install로 복원).
   dist/                   ← Vite 빌드 결과물. Cloudflare는 GitHub에서 직접 빌드하므로 커밋 불필요. 삭제해도 됨.
   .git/                   ← Git 저장소 메타데이터. 절대 삭제 금지.
