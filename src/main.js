@@ -9,7 +9,7 @@ import {
   migrateOldData,
   exportTripJson, importTripJson,
   r2Upload, r2ListFiles, r2Delete, r2OpenFile,
-  r2ShareUpload, r2ShareLoad,
+  r2ShareUpload, r2ShareLoad, isTripShared,
   fetchOsrmRoute,
   googleMapsUrl
 } from './db.js'
@@ -1246,17 +1246,29 @@ window.savePoint = async () => {
   // 새 포인트면 해당 위치로, 수정이면 이전 지도 위치 복원
   if (isNew) flyToPoint(newLat, newLng)
   else if (savedView) setMapView(savedView)
+
+  // 공유된 여행이면 R2 자동 업데이트
+  const activeId = getActiveTripId()
+  if (activeId && await isTripShared(activeId)) {
+    exportTripJson(activeId).then(json => r2ShareUpload(activeId, json)).catch(() => {})
+  }
 }
 
 window.deletePoint = async () => {
   if (!editingId) return
   if (!confirm('이 장소를 삭제할까요?')) return
   const savedView = getMapView()
+  const activeId = getActiveTripId()
   await dbDeletePoint(Number(editingId))
   clearPreviewMarker()
   closeModal()
   await refreshPoints()
   setMapView(savedView)
+
+  // 공유된 여행이면 R2 자동 업데이트
+  if (activeId && await isTripShared(activeId)) {
+    exportTripJson(activeId).then(json => r2ShareUpload(activeId, json)).catch(() => {})
+  }
 }
 
 function clearForm() {

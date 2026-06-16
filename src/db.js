@@ -9,6 +9,10 @@ db.version(1).stores({
   trips:  '++id, name, created_at',
   points: '++id, trip_id, order, day, name, type'
 })
+db.version(2).stores({
+  trips:  '++id, name, created_at, shared',
+  points: '++id, trip_id, order, day, name, type'
+})
 
 // ── 색상/유형 상수 ─────────────────────────────────
 export const TYPE_COLORS = {
@@ -397,7 +401,13 @@ export async function r2ShareUpload(tripId, jsonStr) {
   const blob        = new Blob([jsonStr], { type: 'application/json' })
   const res         = await signedR2Request('PUT', key, blob, 'application/json')
   if (!res.ok) throw new Error(`공유 업로드 실패: ${res.status}`)
+  await db.trips.update(tripId, { shared: true })
   return `${R2_ENDPOINT}/${R2_BUCKET}/${key}`
+}
+
+export async function isTripShared(tripId) {
+  const trip = await db.trips.get(tripId)
+  return trip?.shared === true
 }
 
 // 공유 URL에서 JSON 로드 (서명된 GET — 퍼블릭 액세스 불필요)
