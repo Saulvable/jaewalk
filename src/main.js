@@ -141,6 +141,7 @@ async function showTripList() {
   document.getElementById('export-btn').style.display = 'none'
   document.getElementById('pdf-btn').style.display = 'none'
   document.getElementById('share-btn').style.display = 'none'
+  document.getElementById('import-label').style.display = 'block'
   document.getElementById('summary-panel').style.display = 'none'
 
   clearMap()
@@ -173,6 +174,7 @@ async function showPointList(tripId) {
   document.getElementById('export-btn').style.display = 'block'
   document.getElementById('pdf-btn').style.display = 'block'
   document.getElementById('share-btn').style.display = 'block'
+  document.getElementById('import-label').style.display = 'none'
   document.getElementById('summary-panel').style.display = 'block'
 
   await refreshPoints(true)
@@ -272,6 +274,7 @@ async function handleSharedTrip(tripId) {
     document.getElementById('add-btn').style.display     = 'none'
     document.getElementById('export-btn').style.display  = 'none'
     document.getElementById('share-btn').style.display   = 'none'
+    document.getElementById('import-label').style.display = 'none'
     document.getElementById('sidebar-subtitle').textContent = trip?.name || '공유된 여행'
     document.getElementById('map-hint').textContent      = '👁 읽기 전용 — 공유된 일정입니다'
     document.getElementById('summary-panel').style.display = 'block'
