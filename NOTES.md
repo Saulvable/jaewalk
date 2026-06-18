@@ -52,7 +52,6 @@
 | 장소 검색 | Nominatim (OpenStreetMap) |
 | 파일 저장 | Cloudflare R2 |
 | PDF | jsPDF + NanumGothic CDN (테이블 레이아웃) |
-| 알림 | Web Notifications API + 알림 전용 Service Worker (`public/sw-alarm.js`) |
 | 호스팅 | Cloudflare Pages |
 
 ### 이동수단
@@ -97,7 +96,7 @@ D:\Util\jaewalk\
     main.js               ← 앱 메인 로직. 이벤트 등록, 뷰 전환(여행목록↔포인트리스트),
                              모달 열기/닫기, 장소 저장/삭제, 시간 연쇄 재계산(recalcTimesAfter),
                              이동수단 선택 시 OSRM 소요시간 자동계산(autoCalcDuration),
-                             PDF 생성(jsPDF), 알림 설정(handleAlarm),
+                             PDF 생성(jsPDF),
                              공유 링크 생성(handleShare) 및 수신(handleSharedTrip).
     db.js                 ← 데이터 레이어. Dexie(IndexedDB) CRUD, R2 파일 업로드/삭제/목록,
                              공유 JSON 업로드(r2ShareUpload) / 읽기(r2ShareLoad, 서명된 GET),
@@ -171,22 +170,12 @@ D:\Util\jaewalk\
 - 테이블 레이아웃: `#`, `장소`, `유형`, `도착`, `출발`, `이동수단`, `소요`, `비용`, `메모` 컬럼.
 - 일차별 Dark 헤더 + 교번 행 배경.
 
-### 알림 기능
+### 알림 기능 — 제거됨 (v0.16)
 
-- Web Notifications API + 알림 전용 Service Worker (`public/sw-alarm.js`).
-- `🔔 알림 설정` 버튼으로 활성화.
-- **당일에 켜야 동작한다.** depart_time 기준으로 오늘 날짜에 맞는 시간을 등록함.
-  - 전날 밤에 켜두면: 모든 시간이 이미 지났으므로 "알림 등록할 출발 시간이 없어요" 메시지 출력.
-  - 여행 당일 아침에 켜면: 아직 지나지 않은 모든 depart_time에 대해 5분 전 알림 등록됨.
-- 포인트에 날짜(date 필드) 없이 시간(depart_time)만 저장하는 구조 — 이것이 설계 의도임.
-- **알림 아키텍처:** `main.js`의 `handleAlarm()` → `sendToAlarmSW()` → `sw-alarm.js` (별도 Service Worker) → `self.registration.showNotification()`.
-  - 앱 본체 JS가 아닌 SW에서 타이머를 돌리므로 앱이 백그라운드여도 OS가 SW를 살려두는 동안은 알림 발송됨.
-  - SW 등록: `/sw-alarm.js` (Vite PWA가 생성하는 SW와 별개). `getAlarmSW()`로 필요 시 등록/재사용.
-  - MessageChannel로 앱 ↔ SW 양방향 통신. `SCHEDULE_ALARMS` / `CANCEL_ALARMS` 메시지 타입 사용.
-- **모바일 PWA 앱 설치 필수** (Android Chrome 홈 화면 설치 시 백그라운드 알림 가장 안정적).
-- iOS: 홈 화면 설치 + iOS 16.4 이상 필요. iOS는 SW 백그라운드 실행 제한으로 보장 어려움.
-- 웹브라우저(탭)에서는 탭이 활성 상태여야 함.
-- 알림 재클릭 시 취소. 상태: `🔔 알림 ON (N개)` 표시.
+- Web Notifications API 기반 알림 기능을 시도했으나 (`handleAlarm`, `handleSharedAlarm`, `sw-alarm.js` Service Worker 방식 포함) 백그라운드 안정성이 보장되지 않아 전체 제거함.
+- 제거 이유: setTimeout 기반은 앱이 백그라운드로 가면 OS가 JS 실행을 중단시켜 동작 안 함. Service Worker로 이전해도 Android Chrome 기준으로만 일부 개선 가능하고 100% 보장은 불가능 (iOS는 거의 불가). 일정 알림처럼 신뢰성이 중요한 기능을 100% 보장 안 되는 방식으로 제공하는 것은 부적절하다고 판단.
+- 관련 UI(`alarm-btn`), 함수, `public/sw-alarm.js` 전부 제거됨.
+- 알림이 필요하면 휴대폰 기본 캘린더/알람 앱에 수동 등록하는 방식을 권장.
 
 ### 여행 공유 링크 ✅ 구현완료
 
@@ -252,14 +241,11 @@ git push
 | 지도가 안 뜸 | Leaflet CSS 미로드 | index.html에 leaflet.css import 확인 |
 | 마커 위치 이상 | 위도/경도 순서 오류 | Leaflet: [lat, lng] / OSRM: [lng, lat] |
 | PWA 설치 팝업 없음 | HTTP 환경 | HTTPS(Cloudflare Pages) 배포 후에만 가능 |
-| iOS 알림 안 옴 | Safari에서 열었거나 구버전 | 홈 화면 설치 앱으로 실행, iOS 16.4+ 필요 |
 | 크롬 데이터가 파이어폭스에 없음 | 브라우저별 IndexedDB 격리 | 정상. JSON 내보내기로 이전 |
 | R2 업로드 403 | CORS 미설정 | 위 CORS 설정 적용 (배포 환경) |
 | OSRM 경로 없음 | 공개 서버 일시 불가 또는 도서지역 | 자동으로 직선 fallback |
 | 마커 드래그 시 지도 이동 | Leaflet pan 충돌 | dragstart/dragend로 map.dragging 토글 |
 | PDF 저장 안 됨 | (구버전) pdf_server.py 미실행 | v0.8 이후 jsPDF 방식, 배포 환경 포함 완전 지원 |
-| 알림 안 옴 (웹) | 탭 비활성화 상태 | PWA 앱으로 설치 후 사용 |
-| 알림 백그라운드 안 옴 | main.js setTimeout이 앱 백그라운드 시 중단됨 | sw-alarm.js 전용 SW로 이전됨 (v0.15). Android Chrome PWA 설치 환경에서 개선됨 |
 | 공유 링크 NetworkError | R2 프라이빗 엔드포인트에 직접 fetch | r2ShareLoad를 signedR2Request('GET')으로 수정됨 (v0.11) |
 | R2 첨부파일 클릭 시 InvalidArgument Authorization 에러 | r2Upload가 반환한 bare URL을 직접 열면 프라이빗 버킷이라 403 | r2OpenFile(key) 추가 — 클릭 시 서명된 GET → blob URL로 열기 (db.js, main.js 수정) |
 | 공유 링크 모바일에서 PC 레이아웃 | @media 기준이 600px로 너무 낮았음 | 768px로 상향 수정됨 (v0.11) |

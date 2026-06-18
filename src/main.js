@@ -68,7 +68,6 @@ async function init() {
   document.getElementById('export-btn').addEventListener('click', handleExport)
   document.getElementById('pdf-btn').addEventListener('click', handlePdfDownload)
   document.getElementById('share-btn').addEventListener('click', handleShare)
-  document.getElementById('alarm-btn').addEventListener('click', handleAlarm)
   document.getElementById('import-file').addEventListener('change', handleImport)
 
   // 검색
@@ -142,7 +141,6 @@ async function showTripList() {
   document.getElementById('export-btn').style.display = 'none'
   document.getElementById('pdf-btn').style.display = 'none'
   document.getElementById('share-btn').style.display = 'none'
-  document.getElementById('alarm-btn').style.display = 'none'
   document.getElementById('summary-panel').style.display = 'none'
 
   clearMap()
@@ -175,7 +173,6 @@ async function showPointList(tripId) {
   document.getElementById('export-btn').style.display = 'block'
   document.getElementById('pdf-btn').style.display = 'block'
   document.getElementById('share-btn').style.display = 'block'
-  document.getElementById('alarm-btn').style.display = 'block'
   document.getElementById('summary-panel').style.display = 'block'
 
   await refreshPoints(true)
@@ -279,9 +276,7 @@ async function handleSharedTrip(tripId) {
     document.getElementById('map-hint').textContent      = '👁 읽기 전용 — 공유된 일정입니다'
     document.getElementById('summary-panel').style.display = 'block'
     document.getElementById('pdf-btn').style.display   = 'block'
-    document.getElementById('alarm-btn').style.display = 'block'
     document.getElementById('pdf-btn').onclick = () => handleSharedPdf(trip, points)
-    document.getElementById('alarm-btn').onclick = () => handleSharedAlarm(points)
 
     // ── 상단 배너 ───────────────────────────────────
     const banner = document.createElement('div')
@@ -470,119 +465,6 @@ async function handleSharedPdf(trip, points) {
     doc.save(`${(trip.name||'trip').replace(/\s+/g,'_')}_${new Date().toISOString().slice(0,10)}.pdf`)
   } catch(e){alert('PDF 생성 실패: '+e.message)}
   finally{btn.textContent='📄 PDF 다운로드';btn.disabled=false}
-}
-
-// ── 알림 전용 Service Worker 등록 ────────────────────
-let _alarmSW = null
-async function getAlarmSW() {
-  if (!('serviceWorker' in navigator)) return null
-  try {
-    const reg = await navigator.serviceWorker.register('/sw-alarm.js', { scope: '/' })
-    await reg.update()
-    await navigator.serviceWorker.ready
-    return reg
-  } catch(e) {
-    console.warn('sw-alarm 등록 실패:', e)
-    return null
-  }
-}
-
-async function sendToAlarmSW(type, payload = {}) {
-  const reg = await getAlarmSW()
-  if (!reg || !reg.active) return null
-  return new Promise((resolve) => {
-    const channel = new MessageChannel()
-    channel.port1.onmessage = (e) => resolve(e.data)
-    reg.active.postMessage({ type, ...payload }, [channel.port2])
-  })
-}
-
-function buildAlarmList(points) {
-  const ADVANCE_MIN = 5
-  const now = Date.now()
-  const alarms = []
-  points.forEach((pt, idx) => {
-    if (!pt.depart_time) return
-    const [h, m] = pt.depart_time.split(':').map(Number)
-    const target = new Date()
-    target.setHours(h, m - ADVANCE_MIN, 0, 0)
-    const fireAt = target.getTime()
-    if (fireAt <= now) return
-    const nextPt = points[idx + 1]
-    alarms.push({
-      fireAt,
-      title: `🗺 JaeWalk — 출발 ${ADVANCE_MIN}분 전`,
-      body:  nextPt ? `${pt.name} → ${nextPt.name}` : `${pt.name} 출발 준비`
-    })
-  })
-  return alarms
-}
-
-// ── 공유 뷰 알림 ─────────────────────────────────────
-let _sharedAlarmActive = false
-async function handleSharedAlarm(points) {
-  const btn = document.getElementById('alarm-btn')
-  if (_sharedAlarmActive) {
-    await sendToAlarmSW('CANCEL_ALARMS')
-    _sharedAlarmActive = false
-    btn.classList.remove('active'); btn.textContent = '🔔 알림 설정'; return
-  }
-  if (!('Notification' in window)) { alert('이 브라우저는 알림을 지원하지 않아요.'); return }
-  let perm = Notification.permission
-  if (perm === 'denied') { alert('알림이 차단되어 있어요. 브라우저 설정에서 허용해주세요.'); return }
-  if (perm !== 'granted') perm = await Notification.requestPermission()
-  if (perm !== 'granted') return
-
-  const alarms = buildAlarmList(points)
-  if (alarms.length === 0) { alert('오늘 스케줄에서 알림을 등록할 출발 시간이 없어요.'); return }
-
-  const res = await sendToAlarmSW('SCHEDULE_ALARMS', { alarms })
-  const count = res?.count ?? alarms.length
-  _sharedAlarmActive = true; btn.classList.add('active'); btn.textContent = `🔔 알림 ON (${count}개)`
-}
-
-// ── 알림 기능 ─────────────────────────────────────────
-let _alarmActive = false
-
-async function handleAlarm() {
-  const btn = document.getElementById('alarm-btn')
-
-  if (_alarmActive) {
-    await sendToAlarmSW('CANCEL_ALARMS')
-    _alarmActive = false
-    btn.classList.remove('active')
-    btn.textContent = '🔔 알림 설정'
-    return
-  }
-
-  if (!('Notification' in window)) {
-    alert('이 브라우저는 알림을 지원하지 않아요.\n안드로이드 Chrome에서 홈 화면 앱으로 설치 후 사용하세요.')
-    return
-  }
-
-  let perm = Notification.permission
-  if (perm === 'denied') {
-    alert('알림이 차단되어 있어요.\n브라우저 설정에서 jaewalk.pages.dev 알림을 허용해주세요.')
-    return
-  }
-  if (perm !== 'granted') perm = await Notification.requestPermission()
-  if (perm !== 'granted') return
-
-  const tripId = getActiveTripId()
-  if (!tripId) return
-  const points = await loadPoints(tripId)
-
-  const alarms = buildAlarmList(points)
-  if (alarms.length === 0) {
-    alert('오늘 스케줄에서 알림을 등록할 출발 시간이 없어요.\n포인트에 도착/체류 시간을 입력해주세요.')
-    return
-  }
-
-  const res = await sendToAlarmSW('SCHEDULE_ALARMS', { alarms })
-  const count = res?.count ?? alarms.length
-  _alarmActive = true
-  btn.classList.add('active')
-  btn.textContent = `🔔 알림 ON (${count}개)`
 }
 
 // ── 내보내기 / 가져오기 ─────────────────────────────
