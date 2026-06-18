@@ -52,7 +52,7 @@
 | 장소 검색 | Nominatim (OpenStreetMap) |
 | 파일 저장 | Cloudflare R2 |
 | PDF | jsPDF + NanumGothic CDN (테이블 레이아웃) |
-| 알림 | Web Notifications API (PWA 앱 설치 시 동작) |
+| 알림 | Web Notifications API + 알림 전용 Service Worker (`public/sw-alarm.js`) |
 | 호스팅 | Cloudflare Pages |
 
 ### 이동수단
@@ -173,15 +173,19 @@ D:\Util\jaewalk\
 
 ### 알림 기능
 
-- Web Notifications API. `🔔 알림 설정` 버튼으로 활성화.
+- Web Notifications API + 알림 전용 Service Worker (`public/sw-alarm.js`).
+- `🔔 알림 설정` 버튼으로 활성화.
 - **당일에 켜야 동작한다.** depart_time 기준으로 오늘 날짜에 맞는 시간을 등록함.
   - 전날 밤에 켜두면: 모든 시간이 이미 지났으므로 "알림 등록할 출발 시간이 없어요" 메시지 출력.
   - 여행 당일 아침에 켜면: 아직 지나지 않은 모든 depart_time에 대해 5분 전 알림 등록됨.
 - 포인트에 날짜(date 필드) 없이 시간(depart_time)만 저장하는 구조 — 이것이 설계 의도임.
-- **모바일 PWA 앱 설치 필수** (홈 화면에 설치된 앱에서만 백그라운드 알림 소리 지원).
-- iOS: 홈 화면 설치 + iOS 16.4 이상 필요.
-- 안드로이드 Chrome: 홈 화면 설치 후 동작.
-- 웹브라우저(탭)에서도 기술적으로 동작하지만, 탭이 활성 상태여야 함.
+- **알림 아키텍처:** `main.js`의 `handleAlarm()` → `sendToAlarmSW()` → `sw-alarm.js` (별도 Service Worker) → `self.registration.showNotification()`.
+  - 앱 본체 JS가 아닌 SW에서 타이머를 돌리므로 앱이 백그라운드여도 OS가 SW를 살려두는 동안은 알림 발송됨.
+  - SW 등록: `/sw-alarm.js` (Vite PWA가 생성하는 SW와 별개). `getAlarmSW()`로 필요 시 등록/재사용.
+  - MessageChannel로 앱 ↔ SW 양방향 통신. `SCHEDULE_ALARMS` / `CANCEL_ALARMS` 메시지 타입 사용.
+- **모바일 PWA 앱 설치 필수** (Android Chrome 홈 화면 설치 시 백그라운드 알림 가장 안정적).
+- iOS: 홈 화면 설치 + iOS 16.4 이상 필요. iOS는 SW 백그라운드 실행 제한으로 보장 어려움.
+- 웹브라우저(탭)에서는 탭이 활성 상태여야 함.
 - 알림 재클릭 시 취소. 상태: `🔔 알림 ON (N개)` 표시.
 
 ### 여행 공유 링크 ✅ 구현완료
@@ -255,6 +259,7 @@ git push
 | 마커 드래그 시 지도 이동 | Leaflet pan 충돌 | dragstart/dragend로 map.dragging 토글 |
 | PDF 저장 안 됨 | (구버전) pdf_server.py 미실행 | v0.8 이후 jsPDF 방식, 배포 환경 포함 완전 지원 |
 | 알림 안 옴 (웹) | 탭 비활성화 상태 | PWA 앱으로 설치 후 사용 |
+| 알림 백그라운드 안 옴 | main.js setTimeout이 앱 백그라운드 시 중단됨 | sw-alarm.js 전용 SW로 이전됨 (v0.15). Android Chrome PWA 설치 환경에서 개선됨 |
 | 공유 링크 NetworkError | R2 프라이빗 엔드포인트에 직접 fetch | r2ShareLoad를 signedR2Request('GET')으로 수정됨 (v0.11) |
 | R2 첨부파일 클릭 시 InvalidArgument Authorization 에러 | r2Upload가 반환한 bare URL을 직접 열면 프라이빗 버킷이라 403 | r2OpenFile(key) 추가 — 클릭 시 서명된 GET → blob URL로 열기 (db.js, main.js 수정) |
 | 공유 링크 모바일에서 PC 레이아웃 | @media 기준이 600px로 너무 낮았음 | 768px로 상향 수정됨 (v0.11) |

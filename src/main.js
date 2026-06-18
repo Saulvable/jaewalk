@@ -472,13 +472,59 @@ async function handleSharedPdf(trip, points) {
   finally{btn.textContent='📄 PDF 다운로드';btn.disabled=false}
 }
 
+// ── 알림 전용 Service Worker 등록 ────────────────────
+let _alarmSW = null
+async function getAlarmSW() {
+  if (!('serviceWorker' in navigator)) return null
+  try {
+    const reg = await navigator.serviceWorker.register('/sw-alarm.js', { scope: '/' })
+    await reg.update()
+    await navigator.serviceWorker.ready
+    return reg
+  } catch(e) {
+    console.warn('sw-alarm 등록 실패:', e)
+    return null
+  }
+}
+
+async function sendToAlarmSW(type, payload = {}) {
+  const reg = await getAlarmSW()
+  if (!reg || !reg.active) return null
+  return new Promise((resolve) => {
+    const channel = new MessageChannel()
+    channel.port1.onmessage = (e) => resolve(e.data)
+    reg.active.postMessage({ type, ...payload }, [channel.port2])
+  })
+}
+
+function buildAlarmList(points) {
+  const ADVANCE_MIN = 5
+  const now = Date.now()
+  const alarms = []
+  points.forEach((pt, idx) => {
+    if (!pt.depart_time) return
+    const [h, m] = pt.depart_time.split(':').map(Number)
+    const target = new Date()
+    target.setHours(h, m - ADVANCE_MIN, 0, 0)
+    const fireAt = target.getTime()
+    if (fireAt <= now) return
+    const nextPt = points[idx + 1]
+    alarms.push({
+      fireAt,
+      title: `🗺 JaeWalk — 출발 ${ADVANCE_MIN}분 전`,
+      body:  nextPt ? `${pt.name} → ${nextPt.name}` : `${pt.name} 출발 준비`
+    })
+  })
+  return alarms
+}
+
 // ── 공유 뷰 알림 ─────────────────────────────────────
-let _sharedAlarmTimers = []
 let _sharedAlarmActive = false
 async function handleSharedAlarm(points) {
   const btn = document.getElementById('alarm-btn')
   if (_sharedAlarmActive) {
-    _sharedAlarmTimers.forEach(t => clearTimeout(t)); _sharedAlarmTimers = []; _sharedAlarmActive = false
+    await sendToAlarmSW('CANCEL_ALARMS')
+    _sharedAlarmActive = false
     btn.classList.remove('active'); btn.textContent = '🔔 알림 설정'; return
   }
   if (!('Notification' in window)) { alert('이 브라우저는 알림을 지원하지 않아요.'); return }
@@ -486,46 +532,29 @@ async function handleSharedAlarm(points) {
   if (perm === 'denied') { alert('알림이 차단되어 있어요. 브라우저 설정에서 허용해주세요.'); return }
   if (perm !== 'granted') perm = await Notification.requestPermission()
   if (perm !== 'granted') return
-  const ADVANCE_MIN = 5, now = new Date()
-  let scheduled = 0
-  points.forEach((pt, idx) => {
-    if (!pt.depart_time) return
-    const [h, m] = pt.depart_time.split(':').map(Number)
-    const target = new Date(now); target.setHours(h, m - ADVANCE_MIN, 0, 0)
-    const delay = target - now
-    if (delay <= 0) return
-    const timer = setTimeout(() => {
-      const nextPt = points[idx + 1]
-      new Notification(`🗺 JaeWalk — 출발 ${ADVANCE_MIN}분 전`, {
-        body: nextPt ? `${pt.name} → ${nextPt.name}` : `${pt.name} 출발 준비`,
-        icon: '/icons/icon-192.png', silent: false
-      })
-    }, delay)
-    _sharedAlarmTimers.push(timer); scheduled++
-  })
-  if (scheduled === 0) { alert('오늘 스케줄에서 알림을 등록할 출발 시간이 없어요.'); return }
-  _sharedAlarmActive = true; btn.classList.add('active'); btn.textContent = `🔔 알림 ON (${scheduled}개)`
+
+  const alarms = buildAlarmList(points)
+  if (alarms.length === 0) { alert('오늘 스케줄에서 알림을 등록할 출발 시간이 없어요.'); return }
+
+  const res = await sendToAlarmSW('SCHEDULE_ALARMS', { alarms })
+  const count = res?.count ?? alarms.length
+  _sharedAlarmActive = true; btn.classList.add('active'); btn.textContent = `🔔 알림 ON (${count}개)`
 }
 
 // ── 알림 기능 ─────────────────────────────────────────
-// 포인트별 타이머 ID 저장
-let _alarmTimers = []
 let _alarmActive = false
 
 async function handleAlarm() {
   const btn = document.getElementById('alarm-btn')
 
-  // 이미 알림 활성화 중이면 취소
   if (_alarmActive) {
-    _alarmTimers.forEach(t => clearTimeout(t))
-    _alarmTimers = []
+    await sendToAlarmSW('CANCEL_ALARMS')
     _alarmActive = false
     btn.classList.remove('active')
     btn.textContent = '🔔 알림 설정'
     return
   }
 
-  // 알림 권한 요청
   if (!('Notification' in window)) {
     alert('이 브라우저는 알림을 지원하지 않아요.\n안드로이드 Chrome에서 홈 화면 앱으로 설치 후 사용하세요.')
     return
@@ -536,56 +565,24 @@ async function handleAlarm() {
     alert('알림이 차단되어 있어요.\n브라우저 설정에서 jaewalk.pages.dev 알림을 허용해주세요.')
     return
   }
-  if (perm !== 'granted') {
-    perm = await Notification.requestPermission()
-  }
+  if (perm !== 'granted') perm = await Notification.requestPermission()
   if (perm !== 'granted') return
 
-  // 오늘 날짜 기준 포인트 스케줄 등록
   const tripId = getActiveTripId()
   if (!tripId) return
   const points = await loadPoints(tripId)
 
-  const ADVANCE_MIN = 5  // 출발 5분 전 알림
-  const now = new Date()
-  let scheduled = 0
-
-  points.forEach((pt, idx) => {
-    if (!pt.depart_time) return  // depart_time 없으면 스킵
-    const [h, m] = pt.depart_time.split(':').map(Number)
-    const target = new Date(now)
-    target.setHours(h, m - ADVANCE_MIN, 0, 0)
-    const delay = target - now
-    if (delay <= 0) return  // 이미 지난 시간은 스킵
-
-    const timer = setTimeout(() => {
-      const nextPt = points[idx + 1]
-      const title = `🗺 JaeWalk — 출발 ${ADVANCE_MIN}분 전`
-      const body  = nextPt
-        ? `${pt.name} → ${nextPt.name} (${pt.transport_to_next ? pt.transport_to_next : '이동'})`
-        : `${pt.name} 출발 준비`
-
-      // 소리 있는 알림 (앱 설치 환경에서 기본 소리 재생됨)
-      new Notification(title, {
-        body,
-        icon: '/icons/icon-192.png',
-        badge: '/icons/icon-192.png',
-        silent: false
-      })
-    }, delay)
-
-    _alarmTimers.push(timer)
-    scheduled++
-  })
-
-  if (scheduled === 0) {
+  const alarms = buildAlarmList(points)
+  if (alarms.length === 0) {
     alert('오늘 스케줄에서 알림을 등록할 출발 시간이 없어요.\n포인트에 도착/체류 시간을 입력해주세요.')
     return
   }
 
+  const res = await sendToAlarmSW('SCHEDULE_ALARMS', { alarms })
+  const count = res?.count ?? alarms.length
   _alarmActive = true
   btn.classList.add('active')
-  btn.textContent = `🔔 알림 ON (${scheduled}개)`
+  btn.textContent = `🔔 알림 ON (${count}개)`
 }
 
 // ── 내보내기 / 가져오기 ─────────────────────────────
