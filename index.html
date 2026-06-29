@@ -140,7 +140,7 @@
 <div id="sidebar">
   <div id="sidebar-header">
     <div id="sidebar-header-row">
-      <button id="back-btn">← 목록</button>
+      <button id="back-btn">← List</button>
       <h1>JAEWALK</h1>
     </div>
     <div id="sidebar-subtitle">TRAVEL PLANNER</div>
@@ -150,12 +150,12 @@
   <div id="point-list"></div>
 
   <div id="bottom-bar">
-    <button id="add-btn">+ 여행 추가</button>
+    <button id="add-btn">+ Add Trip</button>
     <div id="bottom-actions">
-      <button id="export-btn">⬇ JSON</button>
+      <button id="export-btn">📤 Export</button>
       <button id="pdf-btn">📄 PDF</button>
-      <button id="share-btn" style="display:none">🔗 링크 복사</button>
-      <label id="import-label" for="import-file">⬆ 가져오기</label>
+      <button id="share-btn" style="display:none">🔗 Share (View Only)</button>
+      <label id="import-label" for="import-file">⬆ Import</label>
       <input type="file" id="import-file" accept=".json" />
     </div>
   </div>
@@ -166,26 +166,26 @@
 
 <!-- 지도 -->
 <div id="map-container">
-  <div id="map-hint">여행을 선택하거나 새로 만드세요</div>
+  <div id="map-hint">Select a trip or create a new one</div>
   <div id="map"></div>
 </div>
 
 <!-- 여행 모달 -->
 <div id="trip-modal-overlay" class="modal-overlay">
   <div class="modal-box">
-    <h2 id="trip-modal-title">새 여행</h2>
+    <h2 id="trip-modal-title">New Trip</h2>
     <div class="form-group">
-      <label>여행 이름 *</label>
-      <input type="text" id="tf-name" placeholder="예: 라스베가스 2025-09" />
+      <label>Trip Name *</label>
+      <input type="text" id="tf-name" placeholder="e.g. Las Vegas 2025-09" />
     </div>
     <div class="form-group">
-      <label>메모 (선택)</label>
-      <input type="text" id="tf-desc" placeholder="예: 가족 여행 4박5일" />
+      <label>Notes (optional)</label>
+      <input type="text" id="tf-desc" placeholder="e.g. Family trip, 5 days" />
     </div>
     <div class="modal-btns">
-      <button class="btn-cancel" onclick="closeTripModal()">취소</button>
-      <button class="btn-delete" id="trip-btn-delete" style="display:none" onclick="deleteTripModal()">삭제</button>
-      <button class="btn-save" onclick="saveTripModal()">저장</button>
+      <button class="btn-cancel" onclick="closeTripModal()">Cancel</button>
+      <button class="btn-delete" id="trip-btn-delete" style="display:none" onclick="deleteTripModal()">Delete</button>
+      <button class="btn-save" onclick="saveTripModal()">Save</button>
     </div>
   </div>
 </div>
@@ -193,13 +193,13 @@
 <!-- 장소 모달 -->
 <div id="modal-overlay" class="modal-overlay">
   <div class="modal-box">
-    <h2 id="modal-title">장소 추가</h2>
+    <h2 id="modal-title">Add Place</h2>
 
     <!-- 검색 -->
     <div class="form-group">
-      <label>장소 검색 (전세계)</label>
+      <label>Search Place (Worldwide)</label>
       <div style="position:relative">
-        <input type="text" id="f-search" placeholder="예: Eiffel Tower / 명동 / Vancouver Airport" autocomplete="off" />
+        <input type="text" id="f-search" placeholder="e.g. Eiffel Tower / Myeongdong / Vancouver Airport" autocomplete="off" />
         <div id="search-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:#1a1a2e;border:1px solid #FF3D5A;border-radius:0 0 8px 8px;z-index:99999;max-height:200px;overflow-y:auto;"></div>
       </div>
       <div id="search-status" style="font-size:11px;color:#555;margin-top:4px;min-height:16px;"></div>
@@ -207,30 +207,30 @@
 
     <!-- 위치 확정 -->
     <div id="location-confirm" style="display:none;background:#0f3460;border-radius:8px;padding:10px 12px;font-size:12px;color:#3ecfb2;margin-bottom:12px;">
-      📍 위치 지정됨 — 마커를 드래그해서 미세 조정 가능
+      📍 Location set — drag marker to fine-tune
     </div>
 
     <div class="form-group">
-      <label>장소명 *</label>
-      <input type="text" id="f-name" placeholder="예: 에펠탑" />
+      <label>Place Name *</label>
+      <input type="text" id="f-name" placeholder="e.g. Eiffel Tower" />
     </div>
 
     <div class="form-row">
       <div class="form-group">
-        <label>유형</label>
+        <label>Type</label>
         <select id="f-type">
-          <option value="departure">🏠 출발지</option>
-          <option value="airport">✈️ 공항</option>
-          <option value="hotel">🏨 숙소</option>
-          <option value="food">🍽️ 식당</option>
-          <option value="attraction">🗺️ 관광지</option>
-          <option value="shopping">🛍️ 쇼핑</option>
-          <option value="transport">🚌 교통</option>
-          <option value="other" selected>📍 기타</option>
+          <option value="departure">🏠 Departure</option>
+          <option value="airport">✈️ Airport</option>
+          <option value="hotel">🏨 Hotel</option>
+          <option value="food">🍽️ Food</option>
+          <option value="attraction">🗺️ Attraction</option>
+          <option value="shopping">🛍️ Shopping</option>
+          <option value="transport">🚌 Transport</option>
+          <option value="other" selected>📍 Other</option>
         </select>
       </div>
       <div class="form-group">
-        <label>일차</label>
+        <label>Day</label>
         <input type="number" id="f-day" value="1" min="1" max="99" />
       </div>
     </div>
@@ -238,67 +238,67 @@
     <!-- 시간: 도착(드롭다운) + 체류시간(드롭다운) -->
     <div class="form-row">
       <div class="form-group">
-        <label>도착 시간 <span style="font-size:10px;color:#3ecfb244">(자동계산됨)</span></label>
+        <label>Arrival Time <span style="font-size:10px;color:#3ecfb244">(auto-calculated)</span></label>
         <select id="f-arrive"></select>
       </div>
       <div class="form-group">
-        <label>체류 시간 <span style="font-size:10px;color:#FF3D5A66">→ 출발 자동</span></label>
+        <label>Stay Duration <span style="font-size:10px;color:#FF3D5A66">→ Departure auto</span></label>
         <select id="f-stay"></select>
       </div>
     </div>
-    <div id="depart-preview" style="display:none;font-size:12px;color:#3ecfb2;padding:2px 0 8px;">출발 --:--</div>
+    <div id="depart-preview" style="display:none;font-size:12px;color:#3ecfb2;padding:2px 0 8px;">Departs --:--</div>
 
     <div class="form-group">
-      <label>태그</label>
-      <input type="text" id="f-tag" placeholder="예: 필수, 예약필요" />
+      <label>Tag</label>
+      <input type="text" id="f-tag" placeholder="e.g. Must-see, Reservation needed" />
     </div>
 
     <div class="form-group">
-      <label>노트</label>
-      <textarea id="f-note" placeholder="메모, 예약번호, 입장 시간 등"></textarea>
+      <label>Note</label>
+      <textarea id="f-note" placeholder="Notes, reservation number, entry time, etc."></textarea>
     </div>
 
     <hr class="section-divider" />
 
     <div class="form-group">
-      <label>출발 이동수단 (다음 장소로)</label>
+      <label>Departure Transport (to next place)</label>
       <select id="f-transport">
-        <option value="">선택 안 함</option>
-        <option value="walk">🚶 도보</option>
-        <option value="car">🚗 자동차</option>
-        <option value="uber">🚕 우버/택시</option>
-        <option value="transit">🚌 버스/전철</option>
-        <option value="flight">✈️ 비행기</option>
+        <option value="">None</option>
+        <option value="walk">🚶 Walk</option>
+        <option value="car">🚗 Car</option>
+        <option value="uber">🚕 Uber/Taxi</option>
+        <option value="transit">🚌 Bus/Subway</option>
+        <option value="flight">✈️ Flight</option>
       </select>
     </div>
 
     <div class="form-row">
       <div class="form-group">
-        <label>이동 소요 시간 <span id="duration-auto-status" style="font-size:10px;color:#3ecfb2;margin-left:4px;"></span></label>
+        <label>Travel Duration <span id="duration-auto-status" style="font-size:10px;color:#3ecfb2;margin-left:4px;"></span></label>
         <select id="f-duration">
           <option value="">-</option>
-          <option value="5">5분</option>
-          <option value="10">10분</option>
-          <option value="15">15분</option>
-          <option value="20">20분</option>
-          <option value="25">25분</option>
-          <option value="30">30분</option>
-          <option value="45">45분</option>
-          <option value="60">1시간</option>
-          <option value="75">1시간 15분</option>
-          <option value="90">1시간 30분</option>
-          <option value="105">1시간 45분</option>
-          <option value="120">2시간</option>
-          <option value="150">2시간 30분</option>
-          <option value="180">3시간</option>
-          <option value="210">3시간 30분</option>
-          <option value="240">4시간</option>
-          <option value="300">5시간</option>
-          <option value="360">6시간</option>
+          <option value="5">5 min</option>
+          <option value="10">10 min</option>
+          <option value="15">15 min</option>
+          <option value="20">20 min</option>
+          <option value="25">25 min</option>
+          <option value="30">30 min</option>
+          <option value="45">45 min</option>
+          <option value="60">1 hr</option>
+          <option value="75">1 hr 15 min</option>
+          <option value="90">1 hr 30 min</option>
+          <option value="105">1 hr 45 min</option>
+          <option value="120">2 hr</option>
+          <option value="150">2 hr 30 min</option>
+          <option value="180">3 hr</option>
+          <option value="210">3 hr 30 min</option>
+          <option value="240">4 hr</option>
+          <option value="300">5 hr</option>
+          <option value="360">6 hr</option>
         </select>
       </div>
       <div class="form-group">
-        <label>이동 비용 ($)</label>
+        <label>Travel Cost ($)</label>
         <input type="number" id="f-cost" placeholder="0" min="0" step="0.5" />
       </div>
     </div>
@@ -307,27 +307,27 @@
 
     <!-- 외부 링크 -->
     <div class="form-group">
-      <label>외부 링크</label>
+      <label>External Link</label>
       <div class="link-row-inputs">
         <input type="url" id="link-url"   placeholder="https://..." />
-        <input type="text" id="link-label" placeholder="표시 이름" style="max-width:120px" />
-        <button id="add-link-btn">+ 추가</button>
+        <input type="text" id="link-label" placeholder="Display Name" style="max-width:120px" />
+        <button id="add-link-btn">+ Add</button>
       </div>
       <div id="link-list"></div>
     </div>
 
     <!-- 파일 업로드 (R2) -->
     <div class="form-group">
-      <label>파일 첨부 (R2 업로드)</label>
-      <label id="file-upload-label" for="f-files">📎 클릭해서 파일 선택 (PDF, 이미지 등)</label>
+      <label>File Attachment (R2 upload)</label>
+      <label id="file-upload-label" for="f-files">📎 Click to select files (PDF, images, etc.)</label>
       <input type="file" id="f-files" multiple style="display:none" />
       <div id="file-status"></div>
     </div>
 
     <div class="modal-btns">
-      <button class="btn-cancel" onclick="closeModal()">취소</button>
-      <button class="btn-delete" id="btn-delete" style="display:none" onclick="deletePoint()">삭제</button>
-      <button class="btn-save" onclick="savePoint()">저장</button>
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-delete" id="btn-delete" style="display:none" onclick="deletePoint()">Delete</button>
+      <button class="btn-save" onclick="savePoint()">Save</button>
     </div>
   </div>
 </div>

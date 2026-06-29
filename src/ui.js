@@ -4,7 +4,7 @@ import { TYPE_COLORS, TYPE_LABELS, TRANSPORT_LABELS, TRANSPORT_COLORS } from './
 function fmtDur(m) {
   if (!m) return ''
   const h = Math.floor(m / 60), r = m % 60
-  return h && r ? `${h}시간 ${r}분` : h ? `${h}시간` : `${r}분`
+  return h && r ? `${h}hr ${r}min` : h ? `${h}hr` : `${r}min`
 }
 
 // ── 여행 목록 ──────────────────────────────────────
@@ -14,13 +14,13 @@ export function renderTripList(trips, callbacks) {
 
   const header = document.createElement('div')
   header.style.cssText = 'padding:8px 4px 12px;font-size:11px;color:#555;letter-spacing:0.5px;text-transform:uppercase;'
-  header.textContent = '내 여행 목록'
+  header.textContent = 'My Trips'
   list.appendChild(header)
 
   if (!trips.length) {
     const empty = document.createElement('div')
     empty.style.cssText = 'text-align:center;color:#444;padding:40px 20px;font-size:13px;line-height:1.9;'
-    empty.innerHTML = '아직 여행이 없어요.<br>아래 버튼으로 만들어보세요.'
+    empty.innerHTML = 'No trips yet.<br>Use the button below to create one.'
     list.appendChild(empty)
     return
   }
@@ -33,8 +33,8 @@ export function renderTripList(trips, callbacks) {
       <div class="point-header" style="margin-bottom:4px">
         <div class="point-dot" style="background:#FF3D5A"></div>
         <div class="point-name" style="flex:1">${trip.name}</div>
-        <button class="order-btn trip-edit-btn" data-id="${trip.id}" title="수정" style="width:28px;height:28px;font-size:13px;">✏️</button>
-        <button class="order-btn trip-del-btn"  data-id="${trip.id}" title="삭제" style="width:28px;height:28px;font-size:13px;margin-left:2px;">🗑</button>
+        <button class="order-btn trip-edit-btn" data-id="${trip.id}" title="Edit" style="width:28px;height:28px;font-size:13px;">✏️</button>
+        <button class="order-btn trip-del-btn"  data-id="${trip.id}" title="Delete" style="width:28px;height:28px;font-size:13px;margin-left:2px;">🗑</button>
       </div>
       ${trip.description ? `<div style="font-size:11px;color:#555;margin-top:2px">${trip.description}</div>` : ''}`
 
@@ -60,13 +60,13 @@ export function renderSidebar(points, callbacks, activeDayFilter = null) {
     bar.className = 'day-filter-bar'
     const allBtn = document.createElement('button')
     allBtn.className = activeDayFilter === null ? 'day-filter-btn active' : 'day-filter-btn'
-    allBtn.textContent = '전체'
+    allBtn.textContent = 'All'
     allBtn.dataset.day = 'all'
     bar.appendChild(allBtn)
     days.forEach(d => {
       const btn = document.createElement('button')
       btn.className = activeDayFilter === d ? 'day-filter-btn active' : 'day-filter-btn'
-      btn.textContent = `${d}일차`
+      btn.textContent = `Day ${d}`
       btn.dataset.day = d
       bar.appendChild(btn)
     })
@@ -83,7 +83,7 @@ export function renderSidebar(points, callbacks, activeDayFilter = null) {
 
   if (!points.length) {
     list.innerHTML += `<div style="text-align:center;color:#444;padding:40px 20px;font-size:13px;line-height:1.9">
-      아직 장소가 없어요.<br>지도를 클릭하거나<br>아래 버튼으로 추가하세요.</div>`
+      No places yet.<br>Click the map or<br>use the button below to add one.</div>`
     return
   }
 
@@ -98,7 +98,7 @@ export function renderSidebar(points, callbacks, activeDayFilter = null) {
     // 일차 구분선
     const div = document.createElement('div')
     div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 4px 6px;font-size:11px;font-weight:700;color:#FF3D5A;letter-spacing:1px;'
-    div.innerHTML = `<span>${day}일차</span><div style="flex:1;height:1px;background:#1e1e3a;"></div>`
+    div.innerHTML = `<span>Day ${day}</span><div style="flex:1;height:1px;background:#1e1e3a;"></div>`
     list.appendChild(div)
 
     dayPts.forEach((point) => {
@@ -126,7 +126,7 @@ export function renderSidebar(points, callbacks, activeDayFilter = null) {
           <div class="point-order-btns">
             <button class="order-btn" data-action="up"   data-id="${point.id}" ${isFirst ? 'disabled style="opacity:0.2"' : ''}>▲</button>
             <button class="order-btn" data-action="down" data-id="${point.id}" ${isLast  ? 'disabled style="opacity:0.2"' : ''}>▼</button>
-            <button class="order-btn" data-action="copy" data-id="${point.id}" title="복사" style="font-size:11px;color:#3ecfb2">⧉</button>
+            <button class="order-btn" data-action="copy" data-id="${point.id}" title="Copy" style="font-size:11px;color:#3ecfb2">⧉</button>
           </div>
         </div>
         <div class="point-meta">
@@ -159,7 +159,7 @@ export function renderSidebar(points, callbacks, activeDayFilter = null) {
             const blobUrl = await callbacks.onR2Open?.(key)
             if (blobUrl) window.open(blobUrl, '_blank')
           } catch {
-            alert('파일을 열 수 없습니다.')
+            alert('Unable to open file.')
           }
         })
       })
@@ -174,7 +174,7 @@ export function renderSidebar(points, callbacks, activeDayFilter = null) {
 
         if (isDayBreak) {
           seg.innerHTML = `<div class="segment-line" style="background:#1e1e3a;height:30px;"></div>
-            <div class="segment-info" style="color:#333;font-size:11px;">─ 다음 일차로 ─</div>`
+            <div class="segment-info" style="color:#333;font-size:11px;">─ To next day ─</div>`
         } else if (point.transport_to_next) {
           const segColor = TRANSPORT_COLORS[point.transport_to_next] || '#555'
           const dur  = point.duration_minutes ? ` · ${fmtDur(point.duration_minutes)}` : ''
@@ -185,12 +185,12 @@ export function renderSidebar(points, callbacks, activeDayFilter = null) {
               <span style="color:#555">${dur}${cost}</span>
               <span style="color:#3ecfb2;font-size:10px;margin-left:4px;">🗺</span>
             </div>`
-          seg.title = '클릭 → 구글지도'
+          seg.title = 'Click → Google Maps'
           seg.style.cursor = 'pointer'
           seg.addEventListener('click', () => callbacks.onSegmentGmaps?.(point.id))
         } else {
           seg.innerHTML = `<div class="segment-line" style="background:#2a2a4a"></div>
-            <div class="segment-info" style="color:#444;font-size:11px;">이동수단 미입력</div>`
+            <div class="segment-info" style="color:#444;font-size:11px;">Transport not set</div>`
         }
         list.appendChild(seg)
       }
@@ -207,8 +207,8 @@ export function renderSummary(tripName, points) {
   panel.innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:#777;white-space:nowrap;overflow:hidden;">
       <span style="font-weight:700;color:#FF3D5A;font-size:12px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;max-width:100px">${tripName}</span>
-      <span style="flex-shrink:0">${days}일</span>
-      <span style="flex-shrink:0">${points.length}곳</span>
+      <span style="flex-shrink:0">${days}d</span>
+      <span style="flex-shrink:0">${points.length} places</span>
       <span style="color:#F39C12;flex-shrink:0">$${totalCost.toFixed(0)}</span>
     </div>`
 }

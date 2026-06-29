@@ -177,6 +177,17 @@ D:\Util\jaewalk\
 - 관련 UI(`alarm-btn`), 함수, `public/sw-alarm.js` 전부 제거됨.
 - 알림이 필요하면 휴대폰 기본 캘린더/알람 앱에 수동 등록하는 방식을 권장.
 
+### UI 텍스트 영어화 (v0.18)
+
+- 화면에 실제로 노출되는 모든 텍스트(버튼, 라벨, placeholder, 드롭다운 옵션, 모달 제목, alert/confirm 메시지, PDF 컬럼명)를 한글 → 영어로 전환.
+- 대상 파일: `index.html`, `src/main.js`, `src/ui.js`, `src/db.js` (`TYPE_LABELS`, `TRANSPORT_LABELS` 상수 포함).
+- **코드 주석은 전환 대상 아님** — 개발자(Claude/제이)만 보는 내용이라 한글 그대로 유지.
+- 버튼 라벨 중 의미가 모호했던 두 개는 더 명확한 표현으로 변경:
+  - `⬇ JSON` → `📤 Export` (파일 포맷명 대신 동작 의미 전달)
+  - `🔗 링크 복사` → `🔗 Share (View Only)` (복사 대상이 읽기전용 공유 링크라는 점 명시)
+- 이동수단/포인트 유형 라벨(예: 🚶 Walk, 🏨 Hotel 등)도 전부 영어로 통일 — PDF 출력의 한글 라벨(`TRANSPORT_KO`, `TYPE_KO` 등)도 동일하게 영어로 변경됨.
+- 기본값 텍스트도 변경: 신규 장소 기본 이름 `새 장소` → `New Place`, 마이그레이션 시 기존 여행 기본 이름 `기존 여행` → `Imported Trip`.
+
 ### 가져오기 버튼 노출 범위 수정 (v0.17)
 
 - `import-label`(⬆ 가져오기) 버튼이 모든 화면에서 항상 보이던 버그 수정.

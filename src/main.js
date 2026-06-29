@@ -21,7 +21,7 @@ async function loadNanumGothic() {
   if (_nanumGothicB64) return _nanumGothicB64
   const url = 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/nanumgothic/NanumGothic-Regular.ttf'
   const res = await fetch(url)
-  if (!res.ok) throw new Error('나눔고딕 폰트 로드 실패')
+  if (!res.ok) throw new Error('Failed to load NanumGothic font')
   const buf = await res.arrayBuffer()
   const bytes = new Uint8Array(buf)
   let binary = ''
@@ -75,7 +75,7 @@ async function init() {
     const q = e.target.value.trim()
     clearTimeout(searchTimer)
     if (q.length < 2) { hideSearchResults(); return }
-    document.getElementById('search-status').textContent = '검색 중...'
+    document.getElementById('search-status').textContent = 'Searching...'
     searchTimer = setTimeout(() => searchPlace(q), 500)
   })
   document.getElementById('f-search').addEventListener('blur', () => setTimeout(hideSearchResults, 200))
@@ -136,8 +136,8 @@ async function showTripList() {
 
   document.getElementById('back-btn').style.display = 'none'
   document.getElementById('sidebar-subtitle').textContent = 'TRAVEL PLANNER'
-  document.getElementById('add-btn').textContent = '+ 여행 추가'
-  document.getElementById('map-hint').textContent = '여행을 선택하거나 새로 만드세요'
+  document.getElementById('add-btn').textContent = '+ Add Trip'
+  document.getElementById('map-hint').textContent = 'Select a trip or create a new one'
   document.getElementById('export-btn').style.display = 'none'
   document.getElementById('pdf-btn').style.display = 'none'
   document.getElementById('share-btn').style.display = 'none'
@@ -152,7 +152,7 @@ async function showTripList() {
     onDelete: async (id) => {
       const trips = await loadTrips()
       const trip  = trips.find(t => t.id === id)
-      if (!confirm(`"${trip?.name}" 여행을 삭제할까요?\n포함된 장소도 모두 삭제됩니다.`)) return
+      if (!confirm(`Delete trip "${trip?.name}"?\nAll places in it will be deleted too.`)) return
       await deleteTrip(id)
       showTripList()
     }
@@ -169,8 +169,8 @@ async function showPointList(tripId) {
 
   document.getElementById('back-btn').style.display = 'block'
   document.getElementById('sidebar-subtitle').textContent = trip?.name || ''
-  document.getElementById('add-btn').textContent = '+ 장소 추가'
-  document.getElementById('map-hint').textContent = '+ 장소 추가 버튼으로 장소를 추가하세요'
+  document.getElementById('add-btn').textContent = '+ Add Place'
+  document.getElementById('map-hint').textContent = 'Add a place using the + Add Place button'
   document.getElementById('export-btn').style.display = 'block'
   document.getElementById('pdf-btn').style.display = 'block'
   document.getElementById('share-btn').style.display = 'block'
@@ -239,7 +239,7 @@ async function handleShare() {
   const tripId = getActiveTripId()
   if (!tripId) return
   const btn = document.getElementById('share-btn')
-  btn.textContent = '⏳ 업로드 중...'
+  btn.textContent = '⏳ Uploading...'
   btn.disabled = true
 
   try {
@@ -247,16 +247,16 @@ async function handleShare() {
     await r2ShareUpload(tripId, json)
     const shareUrl = `${location.origin}${location.pathname}?share=${tripId}`
     await navigator.clipboard.writeText(shareUrl)
-    btn.textContent = '✅ 복사됨!'
+    btn.textContent = '✅ Copied!'
     btn.classList.add('copied')
     setTimeout(() => {
-      btn.textContent = '🔗 링크 복사'
+      btn.textContent = '🔗 Share (View Only)'
       btn.classList.remove('copied')
       btn.disabled = false
     }, 2000)
   } catch(e) {
-    alert('공유 링크 생성 실패: ' + e.message)
-    btn.textContent = '🔗 링크 복사'
+    alert('Failed to create share link: ' + e.message)
+    btn.textContent = '🔗 Share (View Only)'
     btn.disabled = false
   }
 }
@@ -275,8 +275,8 @@ async function handleSharedTrip(tripId) {
     document.getElementById('export-btn').style.display  = 'none'
     document.getElementById('share-btn').style.display   = 'none'
     document.getElementById('import-label').style.display = 'none'
-    document.getElementById('sidebar-subtitle').textContent = trip?.name || '공유된 여행'
-    document.getElementById('map-hint').textContent      = '👁 읽기 전용 — 공유된 일정입니다'
+    document.getElementById('sidebar-subtitle').textContent = trip?.name || 'Shared Trip'
+    document.getElementById('map-hint').textContent      = '👁 Read-only — shared itinerary'
     document.getElementById('summary-panel').style.display = 'block'
     document.getElementById('pdf-btn').style.display   = 'block'
     document.getElementById('pdf-btn').onclick = () => handleSharedPdf(trip, points)
@@ -284,8 +284,8 @@ async function handleSharedTrip(tripId) {
     // ── 상단 배너 ───────────────────────────────────
     const banner = document.createElement('div')
     banner.style.cssText = 'background:#0f3460;color:#3ecfb2;font-size:12px;padding:8px 14px;text-align:center;flex-shrink:0;'
-    banner.innerHTML = `📤 공유된 일정: <b>${trip?.name || ''}</b>
-      <button onclick="window.__importShared()" style="margin-left:10px;background:#FF3D5A;border:none;border-radius:4px;color:white;font-size:11px;padding:2px 8px;cursor:pointer">내 앱에 저장</button>`
+    banner.innerHTML = `📤 Shared itinerary: <b>${trip?.name || ''}</b>
+      <button onclick="window.__importShared()" style="margin-left:10px;background:#FF3D5A;border:none;border-radius:4px;color:white;font-size:11px;padding:2px 8px;cursor:pointer">Save to My App</button>`
     document.getElementById('sidebar').insertBefore(banner, document.getElementById('summary-panel'))
 
     renderSummary(trip?.name || '', points)
@@ -301,16 +301,16 @@ async function handleSharedTrip(tripId) {
     }
 
     window.__importShared = async () => {
-      if (!confirm(`"${trip?.name}" 여행을 내 앱에 저장할까요?`)) return
+      if (!confirm(`Save trip "${trip?.name}" to your app?`)) return
       const newTrip = await importTripJson(json)
-      alert(`"${newTrip.name}" 저장 완료!`)
+      alert(`"${newTrip.name}" saved!`)
       history.replaceState({}, '', location.pathname)
       location.reload()
     }
 
   } catch(e) {
-    document.getElementById('map-hint').textContent = '공유 링크를 불러올 수 없어요'
-    alert('공유 데이터 로드 실패: ' + e.message)
+    document.getElementById('map-hint').textContent = 'Unable to load shared link'
+    alert('Failed to load shared data: ' + e.message)
   }
 }
 
@@ -326,13 +326,13 @@ function renderSharedSidebar(points, activeDayFilter = null) {
     bar.className = 'day-filter-bar'
     const allBtn = document.createElement('button')
     allBtn.className = activeDayFilter === null ? 'day-filter-btn active' : 'day-filter-btn'
-    allBtn.textContent = '전체'
+    allBtn.textContent = 'All'
     allBtn.dataset.day = 'all'
     bar.appendChild(allBtn)
     days.forEach(d => {
       const btn = document.createElement('button')
       btn.className = activeDayFilter === d ? 'day-filter-btn active' : 'day-filter-btn'
-      btn.textContent = `${d}일차`
+      btn.textContent = `Day ${d}`
       btn.dataset.day = d
       bar.appendChild(btn)
     })
@@ -348,17 +348,17 @@ function renderSharedSidebar(points, activeDayFilter = null) {
   const grouped = {}
   points.forEach(p => { const d = p.day || 1; (grouped[d] = grouped[d] || []).push(p) })
   const TC = { departure:'#95A5A6', airport:'#2980B9', hotel:'#E74C3C', food:'#E67E22', attraction:'#2ECC71', shopping:'#F39C12', transport:'#8E44AD', other:'#607D8B' }
-  const TL = { departure:'🏠 출발지', airport:'✈️ 공항', hotel:'🏨 숙소', food:'🍽️ 식당', attraction:'🗺️ 관광지', shopping:'🛍️ 쇼핑', transport:'🚌 교통', other:'📍 기타' }
-  const TRL = { walk:'🚶 도보', car:'🚗 자동차', uber:'🚕 우버/택시', transit:'🚌 버스/전철', flight:'✈️ 비행기' }
+  const TL = { departure:'🏠 Departure', airport:'✈️ Airport', hotel:'🏨 Hotel', food:'🍽️ Food', attraction:'🗺️ Attraction', shopping:'🛍️ Shopping', transport:'🚌 Transport', other:'📍 Other' }
+  const TRL = { walk:'🚶 Walk', car:'🚗 Car', uber:'🚕 Uber/Taxi', transit:'🚌 Bus/Subway', flight:'✈️ Flight' }
   const TRC = { walk:'#2ECC71', car:'#2980B9', uber:'#2980B9', transit:'#8E44AD', flight:'#95A5A6' }
-  function fmtD(m) { if(!m)return''; const h=Math.floor(m/60),r=m%60; return h&&r?`${h}시간 ${r}분`:h?`${h}시간`:`${r}분` }
+  function fmtD(m) { if(!m)return''; const h=Math.floor(m/60),r=m%60; return h&&r?`${h}hr ${r}min`:h?`${h}hr`:`${r}min` }
 
   Object.keys(grouped).map(Number).sort((a,b)=>a-b).forEach(day => {
     if (activeDayFilter !== null && day !== activeDayFilter) return
     const dayPts = grouped[day]
     const div = document.createElement('div')
     div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 4px 6px;font-size:11px;font-weight:700;color:#FF3D5A;letter-spacing:1px;'
-    div.innerHTML = `<span>${day}일차</span><div style="flex:1;height:1px;background:#1e1e3a;"></div>`
+    div.innerHTML = `<span>Day ${day}</span><div style="flex:1;height:1px;background:#1e1e3a;"></div>`
     list.appendChild(div)
 
     dayPts.forEach((point) => {
@@ -400,7 +400,7 @@ function renderSharedSidebar(points, activeDayFilter = null) {
             const blobUrl = await r2OpenFile(key)
             window.open(blobUrl, '_blank')
           } catch {
-            alert('파일을 열 수 없습니다.')
+            alert('Unable to open file.')
           }
         })
       })
@@ -412,7 +412,7 @@ function renderSharedSidebar(points, activeDayFilter = null) {
         seg.className = 'segment-item'
         if (isDayBreak) {
           seg.innerHTML = `<div class="segment-line" style="background:#1e1e3a;height:30px;"></div>
-            <div class="segment-info" style="color:#333;font-size:11px;">─ 다음 일차로 ─</div>`
+            <div class="segment-info" style="color:#333;font-size:11px;">─ To next day ─</div>`
         } else if (point.transport_to_next) {
           const segColor = TRC[point.transport_to_next] || '#555'
           const dur = point.duration_minutes ? ` · ${fmtD(point.duration_minutes)}` : ''
@@ -423,12 +423,12 @@ function renderSharedSidebar(points, activeDayFilter = null) {
               <span style="color:#555">${dur}${cost}</span>
               <span style="color:#3ecfb2;font-size:10px;margin-left:4px;">🗺</span>
             </div>`
-          seg.title = '클릭 → 구글지도'
+          seg.title = 'Click → Google Maps'
           seg.style.cursor = 'pointer'
           seg.addEventListener('click', () => window.open(googleMapsUrl(point, next, point.transport_to_next), '_blank'))
         } else {
           seg.innerHTML = `<div class="segment-line" style="background:#2a2a4a"></div>
-            <div class="segment-info" style="color:#444;font-size:11px;">이동수단 미입력</div>`
+            <div class="segment-info" style="color:#444;font-size:11px;">Transport not set</div>`
         }
         list.appendChild(seg)
       }
@@ -439,7 +439,7 @@ function renderSharedSidebar(points, activeDayFilter = null) {
 // ── 공유 뷰 PDF ──────────────────────────────────────
 async function handleSharedPdf(trip, points) {
   const btn = document.getElementById('pdf-btn')
-  btn.textContent = '⏳ 생성 중...'; btn.disabled = true
+  btn.textContent = '⏳ Generating...'; btn.disabled = true
   try {
     const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })
     const fontB64 = await loadNanumGothic()
@@ -448,26 +448,26 @@ async function handleSharedPdf(trip, points) {
     doc.setFont('NanumGothic')
     const PAGE_W=210,PAGE_H=297,ML=10,MR=10,MT=16,COL_W=PAGE_W-ML-MR
     let y=MT
-    const TK={walk:'도보',car:'자동차',uber:'우버/택시',transit:'버스/전철',flight:'비행기'}
-    const TYK={departure:'출발지',airport:'공항',hotel:'숙소',food:'식당',attraction:'관광지',shopping:'쇼핑',transport:'교통',other:'기타'}
-    function fd(m){if(!m)return'';const h=Math.floor(m/60),r=m%60;return h&&r?`${h}시간 ${r}분`:h?`${h}시간`:`${r}분`}
+    const TK={walk:'Walk',car:'Car',uber:'Uber/Taxi',transit:'Bus/Subway',flight:'Flight'}
+    const TYK={departure:'Departure',airport:'Airport',hotel:'Hotel',food:'Food',attraction:'Attraction',shopping:'Shopping',transport:'Transport',other:'Other'}
+    function fd(m){if(!m)return'';const h=Math.floor(m/60),r=m%60;return h&&r?`${h}hr ${r}min`:h?`${h}hr`:`${r}min`}
     function cp(n=10){if(y+n>PAGE_H-14){doc.addPage();doc.setFont('NanumGothic');y=MT}}
     const C={num:{x:ML,w:5},name:{x:ML+5,w:50},type:{x:ML+55,w:12},arr:{x:ML+67,w:11},dep:{x:ML+78,w:11},trans:{x:ML+89,w:14},dur:{x:ML+103,w:14},cost:{x:ML+117,w:13},note:{x:ML+130,w:COL_W-130}}
     const ROW_H=7
-    function th(){doc.setFillColor(15,52,96);doc.rect(ML,y,COL_W,ROW_H,'F');doc.setTextColor(200,220,240);doc.setFontSize(7);[['#',C.num],['장소',C.name],['유형',C.type],['도착',C.arr],['출발',C.dep],['이동수단',C.trans],['소요',C.dur],['비용',C.cost],['메모',C.note]].forEach(([l,c])=>doc.text(l,c.x+1,y+5));y+=ROW_H}
+    function th(){doc.setFillColor(15,52,96);doc.rect(ML,y,COL_W,ROW_H,'F');doc.setTextColor(200,220,240);doc.setFontSize(7);[['#',C.num],['Place',C.name],['Type',C.type],['Arrive',C.arr],['Depart',C.dep],['Transport',C.trans],['Duration',C.dur],['Cost',C.cost],['Notes',C.note]].forEach(([l,c])=>doc.text(l,c.x+1,y+5));y+=ROW_H}
     function tr(num,pt,even){if(even){doc.setFillColor(245,247,252);doc.rect(ML,y,COL_W,ROW_H,'F')}
       doc.setTextColor(60,60,80);doc.setFontSize(8)
       function ct(t,c){const s=doc.splitTextToSize(String(t),c.w-2)[0]||'';doc.text(s,c.x+1,y+5)}
       doc.setTextColor(100,100,120);ct(num,C.num);doc.setTextColor(26,26,46);doc.setFontSize(8);ct(pt.name,C.name);doc.setFontSize(7);doc.setTextColor(120,120,140);ct(TYK[pt.type]||pt.type||'',C.type);doc.setTextColor(41,128,185);ct(pt.arrive_time||'',C.arr);ct(pt.depart_time||'',C.dep);doc.setTextColor(142,68,173);ct(TK[pt.transport_to_next]||'',C.trans);doc.setTextColor(80,80,100);ct(fd(pt.duration_minutes),C.dur);doc.setTextColor(231,76,60);ct(pt.cost?`$${pt.cost}`:'',C.cost);doc.setTextColor(85,85,85);doc.setFontSize(7);ct([pt.tag,pt.note].filter(Boolean).join(' | '),C.note);doc.setDrawColor(220,225,235);doc.line(ML,y+ROW_H,ML+COL_W,y+ROW_H);y+=ROW_H}
-    doc.setFillColor(10,40,80);doc.rect(0,0,PAGE_W,20,'F');doc.setTextColor(255,255,255);doc.setFontSize(14);doc.text(trip.name||'여행 일정',ML,13);doc.setFontSize(8);doc.setTextColor(160,190,220);doc.text('Generated by JaeWalk',PAGE_W-MR,13,{align:'right'});y=26
+    doc.setFillColor(10,40,80);doc.rect(0,0,PAGE_W,20,'F');doc.setTextColor(255,255,255);doc.setFontSize(14);doc.text(trip.name||'Trip Itinerary',ML,13);doc.setFontSize(8);doc.setTextColor(160,190,220);doc.text('Generated by JaeWalk',PAGE_W-MR,13,{align:'right'});y=26
     const grp={};points.forEach(p=>{const d=p.day||1;(grp[d]=grp[d]||[]).push(p)})
     for(const day of Object.keys(grp).map(Number).sort((a,b)=>a-b)){
       cp(ROW_H*3);doc.setFillColor(30,30,60);doc.rect(ML,y,COL_W,6,'F');doc.setTextColor(255,200,100);doc.setFontSize(9);doc.text(`Day ${day}`,ML+2,y+4.5);y+=8;th()
       grp[day].forEach((pt,idx)=>{cp(ROW_H+2);tr(points.findIndex(p=>p.id===pt.id)+1,pt,idx%2===1)});y+=4}
     const pc=doc.getNumberOfPages();for(let i=1;i<=pc;i++){doc.setPage(i);doc.setFontSize(7);doc.setTextColor(180,180,180);doc.text(`${i} / ${pc}`,PAGE_W-MR,PAGE_H-6,{align:'right'})}
     doc.save(`${(trip.name||'trip').replace(/\s+/g,'_')}_${new Date().toISOString().slice(0,10)}.pdf`)
-  } catch(e){alert('PDF 생성 실패: '+e.message)}
-  finally{btn.textContent='📄 PDF 다운로드';btn.disabled=false}
+  } catch(e){alert('Failed to generate PDF: '+e.message)}
+  finally{btn.textContent='📄 Download PDF';btn.disabled=false}
 }
 
 // ── 내보내기 / 가져오기 ─────────────────────────────
@@ -487,7 +487,7 @@ async function handlePdfDownload() {
   const tripId = getActiveTripId()
   if (!tripId) return
   const btn = document.getElementById('pdf-btn')
-  btn.textContent = '⏳ 생성 중...'
+  btn.textContent = '⏳ Generating...'
   btn.classList.add('loading')
   btn.disabled = true
   try {
@@ -509,13 +509,13 @@ async function handlePdfDownload() {
     const COL_W = PAGE_W - ML - MR
     let y = MT
 
-    const TRANSPORT_KO = { walk:'도보', car:'자동차', uber:'우버/택시', transit:'버스/전철', flight:'비행기' }
-    const TYPE_KO      = { departure:'출발지', airport:'공항', hotel:'숙소', food:'식당', attraction:'관광지', shopping:'쇼핑', transport:'교통', other:'기타' }
+    const TRANSPORT_KO = { walk:'Walk', car:'Car', uber:'Uber/Taxi', transit:'Bus/Subway', flight:'Flight' }
+    const TYPE_KO      = { departure:'Departure', airport:'Airport', hotel:'Hotel', food:'Food', attraction:'Attraction', shopping:'Shopping', transport:'Transport', other:'Other' }
 
     function fmtDurPdf(m) {
       if (!m) return ''
       const h = Math.floor(m / 60), r = m % 60
-      return h && r ? `${h}시간 ${r}분` : h ? `${h}시간` : `${r}분`
+      return h && r ? `${h}hr ${r}min` : h ? `${h}hr` : `${r}min`
     }
 
     function checkPage(needed = 10) {
@@ -543,9 +543,9 @@ async function handlePdfDownload() {
       doc.setTextColor(200, 220, 240)
       doc.setFontSize(7)
       const headers = [
-        ['#', C.num], ['장소', C.name], ['유형', C.type],
-        ['도착', C.arr], ['출발', C.dep], ['이동수단', C.trans],
-        ['소요', C.dur], ['비용', C.cost], ['메모', C.note]
+        ['#', C.num], ['Place', C.name], ['Type', C.type],
+        ['Arrive', C.arr], ['Depart', C.dep], ['Transport', C.trans],
+        ['Duration', C.dur], ['Cost', C.cost], ['Notes', C.note]
       ]
       headers.forEach(([label, col]) => {
         doc.text(label, col.x + 1, y + 5)
@@ -612,7 +612,7 @@ async function handlePdfDownload() {
     doc.rect(0, 0, PAGE_W, 20, 'F')
     doc.setTextColor(255, 255, 255)
     doc.setFontSize(14)
-    doc.text(trip.name || '여행 일정', ML, 13)
+    doc.text(trip.name || 'Trip Itinerary', ML, 13)
     doc.setFontSize(8)
     doc.setTextColor(160, 190, 220)
     doc.text(`Generated by JaeWalk`, PAGE_W - MR, 13, { align: 'right' })
@@ -658,9 +658,9 @@ async function handlePdfDownload() {
     doc.save(`${name}_${new Date().toISOString().slice(0,10)}.pdf`)
 
   } catch(e) {
-    alert('PDF 생성 실패: ' + e.message)
+    alert('Failed to generate PDF: ' + e.message)
   } finally {
-    btn.textContent = '📄 PDF 다운로드'
+    btn.textContent = '📄 Download PDF'
     btn.classList.remove('loading')
     btn.disabled = false
   }
@@ -672,10 +672,10 @@ async function handleImport(e) {
   const text = await file.text()
   try {
     const newTrip = await importTripJson(text)
-    alert(`"${newTrip.name}" 가져오기 완료!`)
+    alert(`"${newTrip.name}" imported!`)
     showTripList()
   } catch {
-    alert('파일 형식이 올바르지 않습니다.')
+    alert('Invalid file format.')
   }
   e.target.value = ''
 }
@@ -685,7 +685,7 @@ function openTripModal(id) {
   editingTripId = id
   document.getElementById('tf-name').value = ''
   document.getElementById('tf-desc').value = ''
-  document.getElementById('trip-modal-title').textContent = id ? '여행 수정' : '새 여행'
+  document.getElementById('trip-modal-title').textContent = id ? 'Edit Trip' : 'New Trip'
   document.getElementById('trip-btn-delete').style.display = id ? 'block' : 'none'
 
   if (id) {
@@ -708,7 +708,7 @@ window.closeTripModal = () => {
 
 window.saveTripModal = async () => {
   const name = document.getElementById('tf-name').value.trim()
-  if (!name) { alert('여행 이름을 입력해주세요.'); return }
+  if (!name) { alert('Please enter a trip name.'); return }
   const desc = document.getElementById('tf-desc').value.trim()
 
   if (editingTripId) {
@@ -727,7 +727,7 @@ window.deleteTripModal = async () => {
   if (!editingTripId) return
   const trips = await loadTrips()
   const trip  = trips.find(t => t.id === editingTripId)
-  if (!confirm(`"${trip?.name}" 여행을 삭제할까요?\n포함된 장소도 모두 삭제됩니다.`)) return
+  if (!confirm(`Delete trip "${trip?.name}"?\nAll places in it will be deleted too.`)) return
   await deleteTrip(editingTripId)
   closeTripModal()
   showTripList()
@@ -740,10 +740,10 @@ async function searchPlace(query) {
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=7&addressdetails=1&accept-language=ko,en`
     const res = await fetch(url)
     const results = await res.json()
-    document.getElementById('search-status').textContent = results.length ? `${results.length}개 결과` : '결과 없음'
+    document.getElementById('search-status').textContent = results.length ? `${results.length} results` : 'No results'
     showSearchResults(results)
   } catch {
-    document.getElementById('search-status').textContent = '검색 실패'
+    document.getElementById('search-status').textContent = 'Search failed'
   }
 }
 
@@ -752,7 +752,7 @@ function showSearchResults(results) {
   box.innerHTML = ''
 
   if (!results.length) {
-    box.innerHTML = `<div style="padding:12px;font-size:12px;color:#888;">결과 없음 — 영어 또는 현지어로 입력해보세요</div>`
+    box.innerHTML = `<div style="padding:12px;font-size:12px;color:#888;">No results — try English or local spelling</div>`
     box.style.display = 'block'
     return
   }
@@ -775,7 +775,7 @@ function showSearchResults(results) {
       setPendingLocation(lat, lng)
       flyToPoint(lat, lng)
       document.getElementById('f-search').value = address.substring(0, 60)
-      document.getElementById('search-status').textContent = `위치 지정됨 (${country})`
+      document.getElementById('search-status').textContent = `Location set (${country})`
       hideSearchResults()
     })
     box.appendChild(item)
@@ -793,7 +793,7 @@ function setPendingLocation(lat, lng) {
   if (previewMarker) { mapInstance.removeLayer(previewMarker); previewMarker = null }
 
   previewMarker = L.marker([lat, lng], { draggable: true, opacity: 0.8, zIndexOffset: 1000 }).addTo(mapInstance)
-  previewMarker.bindTooltip('드래그해서 위치 조정', { permanent: false })
+  previewMarker.bindTooltip('Drag to adjust location', { permanent: false })
   previewMarker.on('dragstart', () => mapInstance.dragging.disable())
   previewMarker.on('drag',    e => { const p = e.target.getLatLng(); pendingLatLng = { lat: p.lat, lng: p.lng } })
   previewMarker.on('dragend', e => {
@@ -816,7 +816,7 @@ function clearPreviewMarker() {
 function addExternalLink() {
   const url   = document.getElementById('link-url').value.trim()
   const label = document.getElementById('link-label').value.trim()
-  if (!url) { alert('URL을 입력해주세요.'); return }
+  if (!url) { alert('Please enter a URL.'); return }
   pendingLinks.push({ url, label: label || url })
   document.getElementById('link-url').value   = ''
   document.getElementById('link-label').value = ''
@@ -847,19 +847,19 @@ async function handleFileUpload(e) {
   if (!tripId || !editingId) return
   const files = [...e.target.files]
   const statusEl = document.getElementById('file-status')
-  statusEl.textContent = '업로드 중...'
+  statusEl.textContent = 'Uploading...'
 
   for (const file of files) {
     try {
       const url = await r2Upload(tripId, `${editingId}_${file.name}`, file)
       pendingLinks.push({ url, label: file.name })
     } catch (err) {
-      statusEl.textContent = `업로드 실패: ${err.message}`
+      statusEl.textContent = `Upload failed: ${err.message}`
       return
     }
   }
 
-  statusEl.textContent = `${files.length}개 업로드 완료`
+  statusEl.textContent = `${files.length} file(s) uploaded`
   renderLinkList()
   e.target.value = ''
 }
@@ -906,7 +906,7 @@ function populateTimeDropdowns() {
     const steps = [10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,200,210,220,230,240,250,260,270,280,290,300]
     steps.forEach(m => {
       const h = Math.floor(m / 60), r = m % 60
-      const label = h && r ? `${h}시간 ${r}분` : h ? `${h}시간` : `${r}분`
+      const label = h && r ? `${h}hr ${r}min` : h ? `${h}hr` : `${r}min`
       stayEl.appendChild(new Option(label, m))
     })
   }
@@ -924,7 +924,7 @@ async function autoCalcDuration() {
   }
 
   // 현재 편집 중인 포인트(출발지)와 다음 포인트(목적지) 좌표 필요
-  if (!pendingLatLng) { if (status) status.textContent = '위치를 먼저 지정해주세요'; return }
+  if (!pendingLatLng) { if (status) status.textContent = 'Please set location first'; return }
 
   const tripId = getActiveTripId()
   const points = await loadPoints(tripId)
@@ -934,7 +934,7 @@ async function autoCalcDuration() {
   if (editingId) {
     const idx = points.findIndex(p => p.id === Number(editingId))
     if (idx < 0 || idx >= points.length - 1) {
-      if (status) status.textContent = '마지막 장소는 다음 경로 없음'
+      if (status) status.textContent = 'Last place has no next route'
       return
     }
     fromPt = { lat: pendingLatLng.lat, lng: pendingLatLng.lng }
@@ -942,20 +942,20 @@ async function autoCalcDuration() {
   } else {
     // 신규 추가: 직전 포인트 → 현재 위치
     if (!prevPointForDuration) {
-      if (status) status.textContent = '첫 장소는 이전 경로 없음'
+      if (status) status.textContent = 'First place has no previous route'
       return
     }
     fromPt = { lat: prevPointForDuration.lat, lng: prevPointForDuration.lng }
     toPt   = { lat: pendingLatLng.lat, lng: pendingLatLng.lng }
   }
 
-  if (status) status.textContent = '⏳ 계산 중...'
+  if (status) status.textContent = '⏳ Calculating...'
 
   const osrmTransport = (transport === 'walk') ? 'walk' : 'car'
   const route = await fetchOsrmRoute(fromPt, toPt, osrmTransport)
 
   if (!route) {
-    if (status) status.textContent = '경로 없음 (수동 입력)'
+    if (status) status.textContent = 'No route found (manual entry)'
     return
   }
 
@@ -968,7 +968,7 @@ async function autoCalcDuration() {
 
   document.getElementById('f-duration').value = nearest
   const distKm = (route.distance / 1000).toFixed(1)
-  if (status) status.textContent = `✅ 자동 (${rawMin}분 · ${distKm}km)`
+  if (status) status.textContent = `✅ Auto (${rawMin}min · ${distKm}km)`
   updateDepartPreview()
 }
 
@@ -983,7 +983,7 @@ function updateDepartPreview() {
     const total  = h * 60 + m + stay
     const dh = String(Math.floor(total / 60) % 24).padStart(2, '0')
     const dm = String(total % 60).padStart(2, '0')
-    preview.textContent = `출발 ${dh}:${dm}`
+    preview.textContent = `Departs ${dh}:${dm}`
     preview.style.display = 'block'
   } else {
     preview.style.display = 'none'
@@ -1044,7 +1044,7 @@ async function openPointModal(id) {
   const deleteBtn = document.getElementById('btn-delete')
 
   if (id) {
-    title.textContent       = '장소 수정'
+    title.textContent       = 'Edit Place'
     deleteBtn.style.display = 'block'
     const tripId = getActiveTripId()
     const points = await loadPoints(tripId)
@@ -1057,7 +1057,7 @@ async function openPointModal(id) {
     }
     await loadR2Files()
   } else {
-    title.textContent       = '장소 추가'
+    title.textContent       = 'Add Place'
     deleteBtn.style.display = 'none'
     // 신규 추가: 현재 마지막 포인트를 출발지로 저장 (이동수단 선택 시 자동계산에 사용)
     const allPts = await loadPoints(getActiveTripId())
@@ -1083,8 +1083,8 @@ window.closeModal = () => {
 
 window.savePoint = async () => {
   const name = document.getElementById('f-name').value.trim()
-  if (!name)         { alert('장소명을 입력해주세요.'); return }
-  if (!pendingLatLng){ alert('위치를 지정해주세요.'); return }
+  if (!name)         { alert('Please enter a place name.'); return }
+  if (!pendingLatLng){ alert('Please set a location.'); return }
 
   const arriveVal = document.getElementById('f-arrive').value
   const stayVal   = parseInt(document.getElementById('f-stay').value) || 0
@@ -1138,7 +1138,7 @@ window.savePoint = async () => {
 
 window.deletePoint = async () => {
   if (!editingId) return
-  if (!confirm('이 장소를 삭제할까요?')) return
+  if (!confirm('Delete this place?')) return
   const savedView = getMapView()
   const activeId = getActiveTripId()
   await dbDeletePoint(Number(editingId))

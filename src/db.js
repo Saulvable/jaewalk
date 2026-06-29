@@ -27,14 +27,14 @@ export const TYPE_COLORS = {
 }
 
 export const TYPE_LABELS = {
-  departure:  '🏠 출발지',
-  airport:    '✈️ 공항',
-  hotel:      '🏨 숙소',
-  food:       '🍽️ 식당',
-  attraction: '🗺️ 관광지',
-  shopping:   '🛍️ 쇼핑',
-  transport:  '🚌 교통',
-  other:      '📍 기타',
+  departure:  '🏠 Departure',
+  airport:    '✈️ Airport',
+  hotel:      '🏨 Hotel',
+  food:       '🍽️ Food',
+  attraction: '🗺️ Attraction',
+  shopping:   '🛍️ Shopping',
+  transport:  '🚌 Transport',
+  other:      '📍 Other',
 }
 
 export const TRANSPORT_COLORS = {
@@ -46,11 +46,11 @@ export const TRANSPORT_COLORS = {
 }
 
 export const TRANSPORT_LABELS = {
-  walk:    '🚶 도보',
-  car:     '🚗 자동차',
-  uber:    '🚕 우버/택시',
-  transit: '🚌 버스/전철',
-  flight:  '✈️ 비행기',
+  walk:    '🚶 Walk',
+  car:     '🚗 Car',
+  uber:    '🚕 Uber/Taxi',
+  transit: '🚌 Bus/Subway',
+  flight:  '✈️ Flight',
 }
 
 // ── Trip CRUD ──────────────────────────────────────
@@ -106,7 +106,7 @@ export async function addPoint(tripId, data) {
     trip_id:           tripId,
     order:             maxOrder + 1,
     day:               data.day               || 1,
-    name:              data.name              || '새 장소',
+    name:              data.name              || 'New Place',
     type:              data.type              || 'other',
     lat:               data.lat,
     lng:               data.lng,
@@ -180,7 +180,7 @@ export async function migrateOldData() {
     if (oldTrips) {
       for (const t of JSON.parse(oldTrips)) {
         await db.trips.add({
-          name: t.name || '기존 여행',
+          name: t.name || 'Imported Trip',
           description: t.description || '',
           created_at: t.created_at || new Date().toISOString()
         })
@@ -194,7 +194,7 @@ export async function migrateOldData() {
           await db.points.add({
             trip_id: targetId,
             order: p.order || 1, day: p.day || 1,
-            name: p.name || '장소', type: p.type || 'other',
+            name: p.name || 'Place', type: p.type || 'other',
             lat: p.lat, lng: p.lng,
             arrive_time: p.arrive_time || '', depart_time: p.depart_time || '',
             tag: p.tag || '', note: p.note || '',
@@ -330,13 +330,13 @@ async function signedR2Request(method, key, body = null, contentType = 'applicat
 export async function r2Upload(tripId, filename, file) {
   const key = `trips/${tripId}/${filename}`
   const res = await signedR2Request('PUT', key, file, file.type || 'application/octet-stream')
-  if (!res.ok) throw new Error(`R2 업로드 실패: ${res.status}`)
+  if (!res.ok) throw new Error(`R2 upload failed: ${res.status}`)
   return `${R2_ENDPOINT}/${R2_BUCKET}/${key}`
 }
 
 export async function r2OpenFile(key) {
   const res = await signedR2Request('GET', key)
-  if (!res.ok) throw new Error(`R2 읽기 실패: ${res.status}`)
+  if (!res.ok) throw new Error(`R2 read failed: ${res.status}`)
   const blob = await res.blob()
   return URL.createObjectURL(blob)
 }
@@ -344,7 +344,7 @@ export async function r2OpenFile(key) {
 export async function r2Delete(tripId, filename) {
   const key = `trips/${tripId}/${filename}`
   const res = await signedR2Request('DELETE', key)
-  if (!res.ok) throw new Error(`R2 삭제 실패: ${res.status}`)
+  if (!res.ok) throw new Error(`R2 delete failed: ${res.status}`)
 }
 
 export async function r2ListFiles(tripId) {
@@ -400,7 +400,7 @@ export async function r2ShareUpload(tripId, jsonStr) {
   const key         = `shares/${tripId}.json`
   const blob        = new Blob([jsonStr], { type: 'application/json' })
   const res         = await signedR2Request('PUT', key, blob, 'application/json')
-  if (!res.ok) throw new Error(`공유 업로드 실패: ${res.status}`)
+  if (!res.ok) throw new Error(`Share upload failed: ${res.status}`)
   await db.trips.update(tripId, { shared: true })
   return `${R2_ENDPOINT}/${R2_BUCKET}/${key}`
 }
@@ -414,7 +414,7 @@ export async function isTripShared(tripId) {
 export async function r2ShareLoad(tripId) {
   const key = `shares/${tripId}.json`
   const res = await signedR2Request('GET', key)
-  if (!res.ok) throw new Error(`공유 데이터 로드 실패: ${res.status}`)
+  if (!res.ok) throw new Error(`Failed to load shared data: ${res.status}`)
   return res.text()
 }
 
